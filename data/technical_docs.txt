@@ -1,0 +1,37 @@
+====================================================================
+           VELO AI - TECHNICAL SUPPORT MANUAL & SYSTEM POLICIES
+====================================================================
+
+1. HARDWARE DIAGNOSTICS & ERROR TROUBLESHOOTING
+--------------------------------------------------------------------
+- [Error 500 - Router Connection Fault]:
+  Symptoms: Red Internet LED, no connectivity.
+  Action: Restart the router by unplugging the power cable for 30 seconds. Check the WAN cable connection.
+
+- [Diagnostic Result: 'Software Glitch']:
+  Status: System is fully recoverable via remote reboot, firmware update, or cache reset.
+
+- [Diagnostic Result: 'Hard Fault']:
+  Status: Indicates critical hardware failure (e.g., Network Card or Motherboard damage). 
+  Action: Non-recoverable via user steps. Must escalate to human team immediately.
+
+2. SYSTEM ESCALATION & CRITIC POLICY (MANDATORY RULES)
+--------------------------------------------------------------------
+- [Policy Rule #1 - Hard Fault Escalation]:
+  If hardware diagnostics report a 'Hard Fault', the agent MUST NOT ask the user to attempt further manual steps or restarts. The agent MUST invoke the `create_escalation_ticket` tool immediately.
+
+- [Policy Rule #2 - Maximum Retry Limit]:
+  If an issue is not resolved within 3 interaction turns, the workflow must automatically trigger ticket creation and route the conversation to human support.
+
+3. REFUND & RETURN POLICIES
+--------------------------------------------------------------------
+- [Return Window]: 
+  Standard products are eligible for a full refund or return strictly within 14 days of purchase with a valid digital receipt.
+
+- [Non-Refundable Items]:
+  Digital licenses, opened software packages, and subscription setup fees are non-refundable.
+
+4. ACCOUNT & ACCESS CONTROL
+--------------------------------------------------------------------
+- [Locked Account]:
+  System locks after 3 failed password attempts. Resolution: Trigger automated password reset link via registered email.
