@@ -6,10 +6,12 @@ from langchain_community.vectorstores import Chroma
 from langchain_ollama import OllamaEmbeddings
 from langchain_openai import OpenAIEmbeddings
 
+
 class RAGEngine:
     def __init__(self, file_path="data/technical_docs.txt", provider="ollama"):
         """
-        provider: 'ollama' للمحلي أو 'openai' للخدمة السحابية
+        Initialize the dual-provider RAG Engine.
+        provider: 'ollama' for local embeddings or 'openai' for cloud service.
         """
         self.file_path = file_path
         self.provider = provider.lower()
@@ -18,6 +20,7 @@ class RAGEngine:
         self._build_index()
 
     def _get_embeddings(self):
+        """Select the embedding provider based on initialization configuration."""
         if self.provider == "ollama":
             return OllamaEmbeddings(model="nomic-embed-text")
         elif self.provider == "openai":
@@ -26,28 +29,30 @@ class RAGEngine:
             raise ValueError("Provider not supported. Choose 'ollama' or 'openai'.")
 
     def _build_index(self):
+        """Load text documents, chunk them into smaller units, and store in ChromaDB."""
         if not os.path.exists(self.file_path):
             raise FileNotFoundError(f"File not found: {self.file_path}")
-            
-        # 1. تحميل ملف البيانات
+
+        # 1. Load technical support document
         loader = TextLoader(self.file_path)
         docs = loader.load()
-        
-        # 2. تقطيع النص لقطع صغيرة
+
+        # 2. Split documents into manageable chunks
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=300, chunk_overlap=50)
         chunks = text_splitter.split_documents(docs)
-        
-        # 3. التخزين في ChromaDB
+
+        # 3. Store vector embeddings in ChromaDB
         self.vector_store = Chroma.from_documents(
-            documents=chunks, 
+            documents=chunks,
             embedding=self.embeddings,
-            collection_name=f"technical_docs_{self.provider}"
+            collection_name=f"technical_docs_{self.provider}",
         )
 
     def retrieve(self, query: str) -> str:
-        """البحث في المستندات المقطعة والمخزنة"""
+        """Query the vector store and return top matching content."""
         results = self.vector_store.similarity_search(query, k=1)
         return "\n".join([doc.page_content for doc in results])
+
 
 if __name__ == "__main__":
     print("--- Testing Local RAG Engine via Ollama ---")
