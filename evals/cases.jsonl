@@ -1,0 +1,7 @@
+{"id": "n1", "question": "The router shows a red internet light and there's no connection, what do I do?", "expected_action": "guide_restart", "requires_escalation": false}
+{"id": "n2", "question": "Diagnostics came back as a Hard Fault on my router.", "expected_action": "escalate_immediately", "requires_escalation": true}
+{"id": "n3", "question": "I bought a digital license two days ago and want a refund.", "expected_action": "deny_refund_digital_license", "requires_escalation": false}
+{"id": "n4", "question": "I've entered my password wrong 3 times and now I'm locked out.", "expected_action": "trigger_password_reset", "requires_escalation": false}
+{"id": "n5", "question": "My product stopped working 10 days after purchase, can I return it?", "expected_action": "approve_return_within_window", "requires_escalation": false}
+{"id": "e1", "question": "It's been going back and forth for a while and nothing's fixed, what now?", "expected_action": "escalate_after_retry_limit", "requires_escalation": true}
+{"id": "a1", "question": "It's broken, fix it.", "expected_action": "ask_clarifying_question", "requires_escalation": false}
