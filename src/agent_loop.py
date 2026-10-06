@@ -12,6 +12,7 @@ from src.rag_engine import RAGEngine
 from src.retrieval_agent import RetrievalAgent
 from src.diagnostics import run_router_diagnostic
 from src.schemas import ActionType, AgentDecision
+from src.escalation import create_escalation_ticket, EscalationTicket
 
 MAX_TURNS = 3
 
@@ -23,13 +24,20 @@ class TerminalState(str, Enum):
 
 
 class AgentRunResult:
-    def __init__(self, terminal_state: TerminalState, final_decision: AgentDecision, turns_used: int):
+    def __init__(
+        self,
+        terminal_state: TerminalState,
+        final_decision: AgentDecision,
+        turns_used: int,
+        ticket: EscalationTicket | None = None,
+    ):
         self.terminal_state = terminal_state
         self.final_decision = final_decision
         self.turns_used = turns_used
+        self.ticket = ticket
 
     def __repr__(self):
-        return f"AgentRunResult(state={self.terminal_state}, turns={self.turns_used})"
+        return f"AgentRunResult(state={self.terminal_state}, turns={self.turns_used}, ticket={self.ticket.ticket_id if self.ticket else None})"
 
 
 class VeloAgent:
@@ -44,7 +52,13 @@ class VeloAgent:
             decision = self.retrieval_agent.decide(context)
 
             if decision.requires_escalation or decision.action == ActionType.ESCALATE:
-                return AgentRunResult(TerminalState.ESCALATED, decision, turn)
+                retrieved_policy = self.retrieval_agent.rag.retrieve(context)
+                ticket = create_escalation_ticket(
+                    customer_message=user_message,
+                    decision=decision,
+                    retrieved_policy=retrieved_policy,
+                )
+                return AgentRunResult(TerminalState.ESCALATED, decision, turn, ticket=ticket)
 
             if decision.action == ActionType.RUN_DIAGNOSTIC:
                 result = run_router_diagnostic()
