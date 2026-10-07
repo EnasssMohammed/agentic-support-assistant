@@ -1,7 +1,7 @@
 [project]
 name = "velo-ai-agent"
-version = "0.1.0"
-description = "Add your description here"
+version = "1.0.0"
+description = "Velo — a domain-agnostic, policy-grounded agentic technical-support assistant (retrieval + diagnostics + bounded resolution + escalation)."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
