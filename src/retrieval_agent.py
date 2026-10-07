@@ -21,12 +21,15 @@ Rules:
 - If the passage says an action MUST be escalated, you MUST set
   requires_escalation=true and action=escalate. Do not suggest manual
   troubleshooting steps in that case.
-- If the customer describes a device/hardware problem (e.g. router issues)
-  and no [DIAGNOSTIC RESULT] is present yet in the message, you MUST choose
-  action=run_diagnostic instead of guessing what's wrong. Do not answer
-  or escalate a hardware complaint until a diagnostic result is available.
-- If a [DIAGNOSTIC RESULT] IS present in the message, use it directly to
-  decide (do not request another diagnostic).
+- Choose action=run_diagnostic ONLY if the customer is describing a
+  ROUTER/CONNECTIVITY/HARDWARE problem (e.g. no internet, red light,
+  device errors) AND no [DIAGNOSTIC RESULT] is present yet in the message.
+  Never choose run_diagnostic for account/password, billing/refund, or
+  any non-device issue - those are decided from the retrieved passage
+  alone.
+- If a [DIAGNOSTIC RESULT] IS already present anywhere in this
+  conversation, you MUST NOT choose run_diagnostic again. Decide using
+  the result you already have.
 - Cite the specific rule you used in `reasoning`.
 """
 

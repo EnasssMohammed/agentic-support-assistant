@@ -45,10 +45,12 @@ class RAGEngine:
             collection_name=f"technical_docs_{self.provider}"
         )
 
-    def retrieve(self, query: str) -> str:
-        """Search the indexed document chunks for the most relevant match."""
-        results = self.vector_store.similarity_search(query, k=1)
-        return "\n".join([doc.page_content for doc in results])
+    def retrieve(self, query: str, k: int = 3) -> str:
+        """Search the indexed document chunks for the k most relevant matches.
+        k=3 (not 1) because a single nearest chunk can land on the wrong
+        policy section entirely when the query is short or ambiguous."""
+        results = self.vector_store.similarity_search(query, k=k)
+        return "\n---\n".join([doc.page_content for doc in results])
 
 
 if __name__ == "__main__":

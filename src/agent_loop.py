@@ -45,8 +45,14 @@ class VeloAgent:
         self.retrieval_agent = RetrievalAgent(model=model, rag=rag)
 
     def run(self, user_message: str) -> AgentRunResult:
-        """Runs the bounded decide -> (diagnose) -> decide loop."""
+        """Runs the bounded decide -> (diagnose) -> decide loop.
+
+        Policy check (code-level, not just prompt-level): the diagnostic
+        tool may run at most ONCE per conversation. Small local models
+        sometimes ignore the "don't ask again" instruction in the prompt,
+        so this is enforced here instead of trusted to the model."""
         context = user_message
+        diagnostic_already_run = False
 
         for turn in range(1, MAX_TURNS + 1):
             decision = self.retrieval_agent.decide(context)
@@ -60,7 +66,8 @@ class VeloAgent:
                 )
                 return AgentRunResult(TerminalState.ESCALATED, decision, turn, ticket=ticket)
 
-            if decision.action == ActionType.RUN_DIAGNOSTIC:
+            if decision.action == ActionType.RUN_DIAGNOSTIC and not diagnostic_already_run:
+                diagnostic_already_run = True
                 result = run_router_diagnostic()
                 # Feed the diagnostic result back in as new evidence for the next decision.
                 context = (
@@ -68,6 +75,11 @@ class VeloAgent:
                     f"[DIAGNOSTIC RESULT]: status={result.status.value}, detail={result.detail}"
                 )
                 continue  # decide again with the new evidence
+
+            if decision.action == ActionType.RUN_DIAGNOSTIC and diagnostic_already_run:
+                # The model asked to diagnose again despite already having a
+                # result - a policy violation. Fail safely instead of looping.
+                return AgentRunResult(TerminalState.BUDGET_EXHAUSTED, decision, turn)
 
             # ANSWER or ASK_CLARIFYING_QUESTION both end the loop as resolved.
             return AgentRunResult(TerminalState.RESOLVED, decision, turn)
