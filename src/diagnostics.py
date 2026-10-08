@@ -10,6 +10,7 @@ docs/00-problem.md's PEAS: actuators are limited to specific, safe actions).
 """
 import random
 from enum import Enum
+
 from pydantic import BaseModel
 
 

@@ -7,13 +7,14 @@ the result, and decide again - within a hard turn budget so it can never
 loop forever (see docs/00-problem.md's success contract: <= 8 turns).
 """
 from enum import Enum
+
+from src.diagnostics import run_router_diagnostic
+from src.escalation import EscalationTicket, create_escalation_ticket
+from src.logging_config import get_logger
 from src.model_client import ModelClient, ModelClientError
 from src.rag_engine import RAGEngine
 from src.retrieval_agent import RetrievalAgent
-from src.diagnostics import run_router_diagnostic
 from src.schemas import ActionType, AgentDecision
-from src.escalation import create_escalation_ticket, EscalationTicket
-from src.logging_config import get_logger
 
 logger = get_logger("agent_loop")
 

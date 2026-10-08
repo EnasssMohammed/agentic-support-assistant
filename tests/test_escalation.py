@@ -1,9 +1,8 @@
 """Pure unit test - builds a fake AgentDecision manually, no LLM involved."""
 import json
-from pathlib import Path
 
-from src.escalation import create_escalation_ticket, TICKETS_DIR
-from src.schemas import AgentDecision, ActionType
+from src.escalation import TICKETS_DIR, create_escalation_ticket
+from src.schemas import ActionType, AgentDecision
 
 
 def test_creates_ticket_file_with_full_context():

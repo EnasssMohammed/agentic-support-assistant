@@ -1,8 +1,9 @@
 [project]
 name = "velo-ai-agent"
-version = "1.0.0"
+version = "1.1.0"
 description = "Velo — a domain-agnostic, policy-grounded agentic technical-support assistant (retrieval + diagnostics + bounded resolution + escalation)."
 readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.12"
 dependencies = [
     "chromadb>=1.5.9",
@@ -10,9 +11,26 @@ dependencies = [
     "langchain-community>=0.4.2",
     "langchain-ollama>=1.1.0",
     "langchain-openai>=1.6.2",
-    "langgraph>=1.2.11",
-    "streamlit>=1.63.0",
+    "ollama>=0.4.0",
+    "pydantic>=2.0",
+    "python-dotenv>=1.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
 ]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+markers = [
+    "requires_llm: needs a live Ollama/OpenAI model (slow; excluded from CI)",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]

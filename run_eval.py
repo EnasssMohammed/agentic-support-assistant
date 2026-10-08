@@ -13,9 +13,9 @@ import json
 import time
 from pathlib import Path
 
+from src.agent_loop import VeloAgent
 from src.model_client import get_model_client
 from src.rag_engine import RAGEngine
-from src.agent_loop import VeloAgent
 
 EVAL_FILE = Path("evals/cases.jsonl")
 REPORT_FILE = Path("reports/agent_results.md")

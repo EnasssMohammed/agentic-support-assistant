@@ -3,9 +3,9 @@ Velo — interactive CLI entry point.
 
 For the full evaluation run instead, use `run_eval.py`.
 """
+from src.agent_loop import VeloAgent
 from src.model_client import get_model_client
 from src.rag_engine import RAGEngine
-from src.agent_loop import VeloAgent
 
 
 def main():

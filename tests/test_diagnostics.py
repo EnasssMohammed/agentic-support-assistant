@@ -1,5 +1,5 @@
 """Pure unit test - no LLM involved, should run in under a second."""
-from src.diagnostics import run_router_diagnostic, DiagnosticStatus, DiagnosticResult
+from src.diagnostics import DiagnosticResult, DiagnosticStatus, run_router_diagnostic
 
 
 def test_diagnostic_returns_valid_result():

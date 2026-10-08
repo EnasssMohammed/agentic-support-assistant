@@ -6,6 +6,7 @@ matching this schema. This is what lets the agent loop (Stage 5) make a
 real decision in code instead of guessing from a paragraph.
 """
 from enum import Enum
+
 from pydantic import BaseModel, Field
 
 

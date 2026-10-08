@@ -8,10 +8,10 @@ gathered (retrieved policy, diagnostic result), and why escalation was
 required. This is the agent's only "write" action (see docs/00-problem.md's
 success contract: "No writes except creating a ticket").
 """
-import json
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+
 from pydantic import BaseModel
 
 from src.schemas import AgentDecision

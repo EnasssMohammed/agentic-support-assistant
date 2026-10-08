@@ -4,9 +4,9 @@ decide again -> terminal state. The diagnostic result is random, so this
 test checks the INVARIANTS that must hold regardless of which outcome
 happened, not one fixed expected answer.
 """
+from src.agent_loop import MAX_TURNS, TerminalState, VeloAgent
 from src.model_client import get_model_client
 from src.rag_engine import RAGEngine
-from src.agent_loop import VeloAgent, TerminalState, MAX_TURNS
 
 
 def test_router_complaint_runs_diagnostic_then_terminates():
