@@ -14,4 +14,5 @@ chroma_langchain/
 *.sqlite3
 .env
 tickets/
+logs/
 

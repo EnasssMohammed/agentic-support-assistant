@@ -7,11 +7,21 @@ Provider is chosen via the MODEL_PROVIDER env var, so switching later
 is a one-line change in .env, not a code change.
 """
 import os
+import json
 from abc import ABC, abstractmethod
 from dotenv import load_dotenv
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
+
+from src.logging_config import get_logger
 
 load_dotenv()
+logger = get_logger("model_client")
+
+
+class ModelClientError(Exception):
+    """Raised when the model provider can't be reached or returns something
+    unusable. Callers should catch this specifically rather than a bare
+    Exception, so other bugs don't get silently swallowed."""
 
 
 class ModelClient(ABC):
@@ -36,16 +46,43 @@ class OllamaClient(ModelClient):
         self._model_name = model_name
 
     def generate(self, messages: list[dict]) -> str:
-        resp = self._client.chat(model=self._model_name, messages=messages)
-        return resp["message"]["content"]
+        try:
+            resp = self._client.chat(model=self._model_name, messages=messages)
+            return resp["message"]["content"]
+        except Exception as e:
+            logger.error(f"Ollama generate() failed (model={self._model_name}): {e}")
+            raise ModelClientError(
+                f"Could not reach Ollama model '{self._model_name}'. "
+                f"Is 'ollama serve' running and is the model pulled? Original error: {e}"
+            ) from e
 
     def generate_structured(self, messages: list[dict], schema: type[BaseModel]) -> BaseModel:
-        resp = self._client.chat(
-            model=self._model_name,
-            messages=messages,
-            format=schema.model_json_schema(),
-        )
-        return schema.model_validate_json(resp["message"]["content"])
+        try:
+            resp = self._client.chat(
+                model=self._model_name,
+                messages=messages,
+                format=schema.model_json_schema(),
+            )
+        except Exception as e:
+            logger.error(f"Ollama generate_structured() failed (model={self._model_name}): {e}")
+            raise ModelClientError(
+                f"Could not reach Ollama model '{self._model_name}'. "
+                f"Is 'ollama serve' running and is the model pulled? Original error: {e}"
+            ) from e
+
+        raw_content = resp["message"]["content"]
+        try:
+            return schema.model_validate_json(raw_content)
+        except (ValidationError, json.JSONDecodeError) as e:
+            logger.error(
+                f"Model returned invalid structured output for schema "
+                f"{schema.__name__}. Raw content: {raw_content!r}. Error: {e}"
+            )
+            raise ModelClientError(
+                f"Model '{self._model_name}' returned output that doesn't match "
+                f"{schema.__name__}. This can happen with small models under load. "
+                f"Raw output was: {raw_content[:200]}"
+            ) from e
 
 
 class OpenAIClient(ModelClient):
@@ -55,24 +92,33 @@ class OpenAIClient(ModelClient):
         self._model_name = model_name
 
     def generate(self, messages: list[dict]) -> str:
-        resp = self._client.chat.completions.create(
-            model=self._model_name,
-            messages=messages,
-        )
-        return resp.choices[0].message.content
+        try:
+            resp = self._client.chat.completions.create(
+                model=self._model_name,
+                messages=messages,
+            )
+            return resp.choices[0].message.content
+        except Exception as e:
+            logger.error(f"OpenAI generate() failed (model={self._model_name}): {e}")
+            raise ModelClientError(f"OpenAI API call failed: {e}") from e
 
     def generate_structured(self, messages: list[dict], schema: type[BaseModel]) -> BaseModel:
-        resp = self._client.beta.chat.completions.parse(
-            model=self._model_name,
-            messages=messages,
-            response_format=schema,
-        )
-        return resp.choices[0].message.parsed
+        try:
+            resp = self._client.beta.chat.completions.parse(
+                model=self._model_name,
+                messages=messages,
+                response_format=schema,
+            )
+            return resp.choices[0].message.parsed
+        except Exception as e:
+            logger.error(f"OpenAI generate_structured() failed (model={self._model_name}): {e}")
+            raise ModelClientError(f"OpenAI structured API call failed: {e}") from e
 
 
 def get_model_client() -> ModelClient:
     """Factory: reads MODEL_PROVIDER from .env (defaults to Ollama)."""
     provider = os.getenv("MODEL_PROVIDER", "ollama").lower()
+    logger.info(f"Initializing model client: provider={provider}")
     if provider == "openai":
         return OpenAIClient(model_name=os.getenv("MODEL_NAME", "gpt-4o-mini"))
     return OllamaClient(model_name=os.getenv("MODEL_NAME", "llama3.1"))
