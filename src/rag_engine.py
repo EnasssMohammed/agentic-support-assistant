@@ -1,19 +1,39 @@
 import os
 
+from dotenv import load_dotenv
 from langchain_community.document_loaders import TextLoader
 from langchain_community.vectorstores import Chroma
 from langchain_ollama import OllamaEmbeddings
 from langchain_openai import OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+load_dotenv()
+
+SUPPORTED_PROVIDERS = ("ollama", "openai")
+
+
+def resolve_provider(provider: str | None = None) -> str:
+    """Explicit argument wins; otherwise MODEL_PROVIDER from .env; otherwise ollama.
+
+    The LLM (model_client.py) and the embeddings read the same switch, so changing
+    MODEL_PROVIDER in .env moves both together and they can't drift apart.
+    """
+    resolved = (provider or os.getenv("MODEL_PROVIDER", "ollama")).strip().lower()
+    if resolved not in SUPPORTED_PROVIDERS:
+        raise ValueError(
+            f"Provider '{resolved}' not supported. Choose one of: {', '.join(SUPPORTED_PROVIDERS)}."
+        )
+    return resolved
+
 
 class RAGEngine:
-    def __init__(self, file_path="data/technical_docs.txt", provider="ollama"):
+    def __init__(self, file_path="data/technical_docs.txt", provider: str | None = None):
         """
-        provider: 'ollama' for local embeddings, or 'openai' for the cloud service.
+        provider: 'ollama' (local) or 'openai' (cloud). If omitted, follows the
+        MODEL_PROVIDER setting in .env.
         """
         self.file_path = file_path
-        self.provider = provider.lower()
+        self.provider = resolve_provider(provider)
         self.vector_store = None
         self.embeddings = self._get_embeddings()
         self._build_index()
@@ -55,6 +75,6 @@ class RAGEngine:
 
 if __name__ == "__main__":
     print("--- Testing Local RAG Engine via Ollama ---")
-    rag = RAGEngine(provider="ollama")
+    rag = RAGEngine()
     response = rag.retrieve("What should I do if Error 500 appears?")
     print(response)

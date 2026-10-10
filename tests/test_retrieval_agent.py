@@ -10,7 +10,7 @@ from src.retrieval_agent import RetrievalAgent
 
 
 def test_return_window_is_grounded_not_hallucinated():
-    agent = RetrievalAgent(model=get_model_client(), rag=RAGEngine(provider="ollama"))
+    agent = RetrievalAgent(model=get_model_client(), rag=RAGEngine())
     decision = agent.decide("My product stopped working 10 days after purchase, can I return it?")
 
     print("\n--- Return window decision ---")
@@ -20,7 +20,7 @@ def test_return_window_is_grounded_not_hallucinated():
 
 
 def test_hard_fault_triggers_escalation():
-    agent = RetrievalAgent(model=get_model_client(), rag=RAGEngine(provider="ollama"))
+    agent = RetrievalAgent(model=get_model_client(), rag=RAGEngine())
     decision = agent.decide("Diagnostics came back as a Hard Fault on my router.")
 
     print("\n--- Hard Fault decision ---")

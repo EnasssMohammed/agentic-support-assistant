@@ -23,7 +23,7 @@ REPORT_FILE = Path("reports/agent_results.md")
 
 def main():
     cases = [json.loads(line) for line in open(EVAL_FILE, encoding="utf-8")]
-    agent = VeloAgent(model=get_model_client(), rag=RAGEngine(provider="ollama"))
+    agent = VeloAgent(model=get_model_client(), rag=RAGEngine())
 
     Path("reports").mkdir(exist_ok=True)
     with open(REPORT_FILE, "w", encoding="utf-8") as report:

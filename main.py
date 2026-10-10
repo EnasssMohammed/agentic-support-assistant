@@ -10,7 +10,7 @@ from src.rag_engine import RAGEngine
 
 def main():
     print("Velo support agent (type 'quit' to exit)\n")
-    agent = VeloAgent(model=get_model_client(), rag=RAGEngine(provider="ollama"))
+    agent = VeloAgent(model=get_model_client(), rag=RAGEngine())
 
     while True:
         user_message = input("You: ").strip()
