@@ -10,7 +10,7 @@ from src.rag_engine import RAGEngine
 
 
 def test_router_complaint_runs_diagnostic_then_terminates():
-    agent = VeloAgent(model=get_model_client(), rag=RAGEngine(provider="ollama"))
+    agent = VeloAgent(model=get_model_client(), rag=RAGEngine())
     result = agent.run("My router's internet light is red and nothing works.")
 
     print("\n--- Agent run result ---")
