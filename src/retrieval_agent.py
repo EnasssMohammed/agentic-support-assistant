@@ -29,7 +29,8 @@ Rules:
   alone.
 - If a [DIAGNOSTIC RESULT] IS already present anywhere in this
   conversation, you MUST NOT choose run_diagnostic again. Decide using
-  the result you already have.
+  the result you already have. A diagnostic outcome the customer states in
+  their own message (for example "Hard Fault") counts as a diagnostic result.
 - Cite the specific rule you used in `reasoning`.
 """
 

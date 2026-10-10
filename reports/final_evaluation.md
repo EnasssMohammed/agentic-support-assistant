@@ -63,3 +63,25 @@ check) catching a genuine model failure. Remaining inconsistency is
 attributable to the small model's reasoning capacity, not the architecture
 — the same pipeline with a larger model is expected to show more consistent
 reasoning while keeping the same grounding and safety guarantees.
+
+## Addendum (2026-10-10): correction to the n2 analysis
+
+The Failure/Recovery Case above attributes the n2 failure to the small model ignoring
+an instruction. That was incomplete. The system prompt itself pushed the model to the
+wrong action: its rule said to choose `run_diagnostic` whenever the customer describes a
+device problem and no `[DIAGNOSTIC RESULT]` marker is present, but n2's message already
+states the result ("Diagnostics came back as a Hard Fault"). The model quoted that rule
+in its reasoning when it chose `run_diagnostic`.
+
+The failure went unnoticed because `test_hard_fault_triggers_escalation` needs a live
+model and is excluded from CI. It was found when the live tests were re-run after the
+Dependabot updates; the same behaviour is visible in the 2026-10-07 evaluation run, so
+it is not caused by the dependency updates.
+
+Fix: Policy Rule #1 (a Hard Fault must be escalated immediately) is now enforced in code.
+A Hard Fault stated by the customer, or returned by the diagnostic tool, escalates
+without depending on the model's decision. The regression is covered by deterministic
+tests that run in CI (`tests/test_agent_loop_unit.py`).
+
+The earlier Stage 3 live test for the return window had no assertion, so its PASSED result
+verified nothing; it now checks that the baseline's invented "30 days" does not appear.
