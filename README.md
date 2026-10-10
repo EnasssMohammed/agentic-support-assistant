@@ -1,11 +1,14 @@
 # Velo — Agentic Technical Support Assistant
 
+[![CI](https://github.com/EnasssMohammed/agentic-support-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/EnasssMohammed/agentic-support-assistant/actions/workflows/ci.yml)
+![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
+
 A domain-agnostic, policy-grounded AI support agent, built as an applied
 implementation of the Fin.ai agentic pattern: knowledge retrieval, safe
 diagnostics, a bounded resolution workflow, and escalation to a human with
 a full context package when the agent can't resolve the issue itself.
 
-Current version: **v1.0.0** — all minimum evidence requirements implemented
+Current version: **v1.1.0** — all minimum evidence requirements implemented
 and evaluated. See [`reports/final_evaluation.md`](reports/final_evaluation.md)
 for the full before/after analysis against a non-agentic baseline.
 
@@ -44,6 +47,10 @@ Customer message
       (bounded to MAX_TURNS, src/agent_loop.py)
 ```
 
+### Failure handling
+
+Every run ends in a defined terminal state: `RESOLVED`, `ESCALATED`, `BUDGET_EXHAUSTED`, or `FAILED_SAFELY`. Provider errors and malformed model output are caught (`ModelClientError`), logged, and returned as `FAILED_SAFELY` instead of crashing; the single-diagnostic rule is enforced in code, not only in the prompt.
+
 ## Tech Stack
 
 * **Language:** Python 3.12+
@@ -52,11 +59,13 @@ Customer message
 * **Embeddings:** Ollama (`nomic-embed-text`) or OpenAI (`text-embedding-3-small`)
 * **LLM:** Ollama (local, e.g. `llama3.2:1b`) or OpenAI — switchable via `.env`, no code change
 * **Frameworks:** LangChain (retrieval), Pydantic (structured output/schemas)
+* **Quality:** pytest, ruff, GitHub Actions CI, structured logging (`logs/velo.log`)
 
 ## Directory Structure
 
 ```text
 velo/
+├── .github/workflows/ci.yml   # Lint + deterministic unit tests on every push/PR
 ├── data/
 │   └── technical_docs.txt     # Knowledge base (policies, troubleshooting)
 ├── docs/
@@ -76,9 +85,12 @@ velo/
 │   ├── diagnostics.py         # Mock router diagnostic tool
 │   ├── escalation.py          # Escalation ticket (context package) tool
 │   ├── agent_loop.py          # Bounded decide → diagnose → decide loop
+│   ├── logging_config.py      # Console + file logging
 │   └── baseline.py            # Non-agentic baseline (for comparison only)
-├── tests/                     # One test file per component above
+├── tests/                     # Unit tests (fake model, run in CI) + LLM tests (local only)
 ├── tickets/                   # Generated escalation tickets (gitignored)
+├── .env.example               # Required environment variables
+├── LICENSE                    # MIT
 └── run_eval.py                # Runs the full agent against evals/cases.jsonl
 ```
 
@@ -88,7 +100,7 @@ velo/
 uv sync
 ```
 
-Create a `.env` file:
+Copy `.env.example` to `.env` and adjust it:
 ```
 MODEL_PROVIDER=ollama
 MODEL_NAME=llama3.2:1b
@@ -104,8 +116,14 @@ ollama pull nomic-embed-text
 ## Running
 
 ```bash
-# Run all tests
+# Fast, deterministic tests (no model needed - this is what CI runs)
+uv run pytest -m "not requires_llm" -v
+
+# Everything, including end-to-end tests that call a live Ollama/OpenAI model (slow)
 uv run pytest -v
+
+# Lint
+uv run ruff check .
 
 # Run the full agent against the frozen eval set and generate the comparison report
 uv run python run_eval.py
