@@ -5,6 +5,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- A Hard Fault stated by the customer (or returned by the diagnostic tool) now escalates in
+  code (Policy Rule #1) instead of depending on the model; previously the model could answer
+  `run_diagnostic` to a message that already reported the result. Customer-reported
+  diagnostic outcomes are recognised and the tool is not re-run to confirm them.
+- Live-model return-window test now asserts the baseline's hallucinated "30 days" is absent.
+
 ### Changed
 - `RAGEngine` now follows the `MODEL_PROVIDER` setting in `.env` (via `resolve_provider`),
   so the LLM and the embeddings switch together; previously embeddings were hardcoded to Ollama (#2).

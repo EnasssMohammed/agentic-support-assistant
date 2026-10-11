@@ -8,7 +8,7 @@ loop forever (see docs/00-problem.md's success contract: <= 8 turns).
 """
 from enum import Enum
 
-from src.diagnostics import run_router_diagnostic
+from src.diagnostics import DiagnosticStatus, extract_reported_status, run_router_diagnostic
 from src.escalation import EscalationTicket, create_escalation_ticket
 from src.logging_config import get_logger
 from src.model_client import ModelClient, ModelClientError
@@ -75,6 +75,19 @@ class VeloAgent:
         context = user_message
         diagnostic_already_run = False
 
+        # A diagnostic outcome stated by the customer counts as a diagnostic result, so
+        # the tool is not run again to "confirm" it.
+        reported_status = extract_reported_status(user_message)
+        if reported_status is not None:
+            diagnostic_already_run = True
+            logger.info(f"Customer reported diagnostic status: {reported_status.value}")
+            if reported_status == DiagnosticStatus.HARD_FAULT:
+                return self._escalate(user_message, context, self._hard_fault_decision(), turn=0)
+            context = (
+                f"{user_message}\n\n"
+                f"[DIAGNOSTIC RESULT]: status={reported_status.value}, detail=reported by the customer"
+            )
+
         for turn in range(1, MAX_TURNS + 1):
             logger.info(f"Turn {turn}/{MAX_TURNS} - deciding...")
             try:
@@ -88,21 +101,7 @@ class VeloAgent:
             logger.info(f"Turn {turn} decision: action={decision.action}, escalate={decision.requires_escalation}")
 
             if decision.requires_escalation or decision.action == ActionType.ESCALATE:
-                try:
-                    retrieved_policy = self.retrieval_agent.rag.retrieve(context)
-                    ticket = create_escalation_ticket(
-                        customer_message=user_message,
-                        decision=decision,
-                        retrieved_policy=retrieved_policy,
-                    )
-                    logger.info(f"Escalated. Ticket created: {ticket.ticket_id}")
-                except Exception as e:
-                    # Even if ticket creation fails, we must not pretend it worked.
-                    logger.error(f"Escalation decided but ticket creation failed: {e}")
-                    return AgentRunResult(
-                        TerminalState.FAILED_SAFELY, decision, turn, error_message=str(e)
-                    )
-                return AgentRunResult(TerminalState.ESCALATED, decision, turn, ticket=ticket)
+                return self._escalate(user_message, context, decision, turn)
 
             if decision.action == ActionType.RUN_DIAGNOSTIC and not diagnostic_already_run:
                 diagnostic_already_run = True
@@ -112,6 +111,9 @@ class VeloAgent:
                     f"{user_message}\n\n"
                     f"[DIAGNOSTIC RESULT]: status={result.status.value}, detail={result.detail}"
                 )
+                if result.status == DiagnosticStatus.HARD_FAULT:
+                    # Policy Rule #1 is mandatory, so it is enforced here, not left to the model.
+                    return self._escalate(user_message, context, self._hard_fault_decision(), turn)
                 continue
 
             if decision.action == ActionType.RUN_DIAGNOSTIC and diagnostic_already_run:
@@ -125,6 +127,40 @@ class VeloAgent:
 
         logger.warning(f"Turn budget ({MAX_TURNS}) exhausted without resolution.")
         return AgentRunResult(TerminalState.BUDGET_EXHAUSTED, decision, MAX_TURNS)
+
+    def _escalate(
+        self, user_message: str, context: str, decision: AgentDecision, turn: int
+    ) -> AgentRunResult:
+        """Write the escalation ticket; finish ESCALATED, or FAILED_SAFELY if it can't be written."""
+        try:
+            retrieved_policy = self.retrieval_agent.rag.retrieve(context)
+            ticket = create_escalation_ticket(
+                customer_message=user_message,
+                decision=decision,
+                retrieved_policy=retrieved_policy,
+            )
+            logger.info(f"Escalated. Ticket created: {ticket.ticket_id}")
+        except Exception as e:
+            # Even if ticket creation fails, we must not pretend it worked.
+            logger.error(f"Escalation decided but ticket creation failed: {e}")
+            return AgentRunResult(TerminalState.FAILED_SAFELY, decision, turn, error_message=str(e))
+        return AgentRunResult(TerminalState.ESCALATED, decision, turn, ticket=ticket)
+
+    @staticmethod
+    def _hard_fault_decision() -> AgentDecision:
+        return AgentDecision(
+            action=ActionType.ESCALATE,
+            reasoning=(
+                "Policy Rule #1: a Hard Fault diagnostic result is non-recoverable via user "
+                "steps and must be escalated to the human team immediately. Enforced in code, "
+                "not left to the model."
+            ),
+            requires_escalation=True,
+            response_to_user=(
+                "This needs a technician. I've escalated your case to our support team with "
+                "the details, so you won't need to repeat them."
+            ),
+        )
 
     @staticmethod
     def _validate_input(user_message: str) -> None:

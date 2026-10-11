@@ -9,6 +9,7 @@ command runner. That narrowness is itself a safety control (see
 docs/00-problem.md's PEAS: actuators are limited to specific, safe actions).
 """
 import random
+import re
 from enum import Enum
 
 from pydantic import BaseModel
@@ -23,6 +24,25 @@ class DiagnosticStatus(str, Enum):
 class DiagnosticResult(BaseModel):
     status: DiagnosticStatus
     detail: str
+
+
+# Checked in this order: the safer (escalating) status wins if a message mentions both.
+_REPORTED_STATUS_PATTERNS = (
+    (re.compile(r"hard[\s_-]?fault", re.IGNORECASE), DiagnosticStatus.HARD_FAULT),
+    (re.compile(r"software[\s_-]?glitch", re.IGNORECASE), DiagnosticStatus.SOFTWARE_GLITCH),
+)
+
+
+def extract_reported_status(message: str) -> DiagnosticStatus | None:
+    """Return the diagnostic status the customer states in their own message, if any.
+
+    A customer who says "diagnostics came back as a Hard Fault" has already given us a
+    diagnostic result; running the tool again to confirm it would be pointless.
+    """
+    for pattern, status in _REPORTED_STATUS_PATTERNS:
+        if pattern.search(message):
+            return status
+    return None
 
 
 def run_router_diagnostic(device_id: str = "mock-router-01") -> DiagnosticResult:
