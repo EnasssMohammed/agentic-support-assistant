@@ -6,6 +6,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Fixed
+- Creating a second `RAGEngine` in the same process duplicated every chunk of the in-memory index
+  (11 became 22), so top-k retrieval could return the same passage more than once.
 - A Hard Fault stated by the customer (or returned by the diagnostic tool) now escalates in
   code (Policy Rule #1) instead of depending on the model; previously the model could answer
   `run_diagnostic` to a message that already reported the result. Customer-reported
@@ -13,6 +15,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Live-model return-window test now asserts the baseline's hallucinated "30 days" is absent.
 
 ### Changed
+- The knowledge-base index is built once and persisted under `chroma_langchain/<provider>/`, with a
+  fingerprint of the source text, provider, embedding model and chunk settings. It is reused until any
+  of those change, instead of re-embedding the whole document on every start (about 3.7 minutes
+  locally with Ollama).
 - `RAGEngine` now follows the `MODEL_PROVIDER` setting in `.env` (via `resolve_provider`),
   so the LLM and the embeddings switch together; previously embeddings were hardcoded to Ollama (#2).
 
