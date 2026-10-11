@@ -17,8 +17,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 - The knowledge-base index is built once and persisted under `chroma_langchain/<provider>/`, with a
   fingerprint of the source text, provider, embedding model and chunk settings. It is reused until any
-  of those change, instead of re-embedding the whole document on every start (about 3.7 minutes
-  locally with Ollama).
+  of those change, instead of re-embedding the whole document on every start (measured at about
+  40 seconds locally with Ollama and `nomic-embed-text`).
 - `RAGEngine` now follows the `MODEL_PROVIDER` setting in `.env` (via `resolve_provider`),
   so the LLM and the embeddings switch together; previously embeddings were hardcoded to Ollama (#2).
 
