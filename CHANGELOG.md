@@ -5,6 +5,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-12
+
 ### Fixed
 - `reports/baseline_results.md` is again the raw output of the Stage 1 baseline run, recovered from the
   original commit. The version restored in 1.0.1 was a condensed reconstruction written from a pasted
@@ -22,11 +24,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   fingerprint of the source text, provider, embedding model and chunk settings. It is reused until any
   of those change, instead of re-embedding the whole document on every start (measured at about
   40 seconds locally with Ollama and `nomic-embed-text`).
+- Dependency updates through Dependabot: `langchain` 1.4.3, `langchain-openai` 1.6.7, `ollama` 0.6.3,
+  `python-dotenv` 1.2.4, and the `actions/checkout` v7 and `astral-sh/setup-uv` v7 GitHub Actions.
 - `RAGEngine` now follows the `MODEL_PROVIDER` setting in `.env` (via `resolve_provider`),
   so the LLM and the embeddings switch together; previously embeddings were hardcoded to Ollama (#2).
 
 ### Added
-- Unit tests for provider resolution.
+- Unit tests for provider resolution, the index cache and Hard Fault enforcement.
 - Dependabot configuration and this changelog.
 
 ## [1.1.0] - 2026-10-10
@@ -91,7 +95,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   client (Ollama / OpenAI) with structured output, and the `AgentDecision` schema.
 - Removed a duplicate `rag_enginge.py`.
 
-[Unreleased]: https://github.com/EnasssMohammed/agentic-support-assistant/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/EnasssMohammed/agentic-support-assistant/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/EnasssMohammed/agentic-support-assistant/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/EnasssMohammed/agentic-support-assistant/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/EnasssMohammed/agentic-support-assistant/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/EnasssMohammed/agentic-support-assistant/compare/v0.6.0...v1.0.0

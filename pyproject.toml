@@ -1,6 +1,6 @@
 [project]
 name = "velo-ai-agent"
-version = "1.1.0"
+version = "1.2.0"
 description = "Velo — a domain-agnostic, policy-grounded agentic technical-support assistant (retrieval + diagnostics + bounded resolution + escalation)."
 readme = "README.md"
 license = { text = "MIT" }
