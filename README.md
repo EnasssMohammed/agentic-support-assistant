@@ -8,7 +8,7 @@ implementation of the Fin.ai agentic pattern: knowledge retrieval, safe
 diagnostics, a bounded resolution workflow, and escalation to a human with
 a full context package when the agent can't resolve the issue itself.
 
-Current version: **v1.1.0** — all minimum evidence requirements implemented
+Current version: **v1.2.0** — all minimum evidence requirements implemented
 and evaluated. See [`reports/final_evaluation.md`](reports/final_evaluation.md)
 for the full before/after analysis against a non-agentic baseline.
 
