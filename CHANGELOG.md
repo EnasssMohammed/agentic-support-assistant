@@ -6,6 +6,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Fixed
+- `reports/baseline_results.md` is again the raw output of the Stage 1 baseline run, recovered from the
+  original commit. The version restored in 1.0.1 was a condensed reconstruction written from a pasted
+  copy of that output, not the captured file.
 - Creating a second `RAGEngine` in the same process duplicated every chunk of the in-memory index
   (11 became 22), so top-k retrieval could return the same passage more than once.
 - A Hard Fault stated by the customer (or returned by the diagnostic tool) now escalates in
