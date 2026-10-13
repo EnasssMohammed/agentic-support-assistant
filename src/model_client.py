@@ -26,6 +26,8 @@ class ModelClientError(Exception):
 
 
 class ModelClient(ABC):
+    model_name: str = "unknown"  # recorded in evaluation reports
+
     @abstractmethod
     def generate(self, messages: list[dict]) -> str:
         """messages: [{"role": "system"|"user"|"assistant", "content": str}]"""
@@ -45,6 +47,7 @@ class OllamaClient(ModelClient):
         import ollama
         self._client = ollama
         self._model_name = model_name
+        self.model_name = model_name
 
     def generate(self, messages: list[dict]) -> str:
         try:
@@ -91,6 +94,7 @@ class OpenAIClient(ModelClient):
         from openai import OpenAI
         self._client = OpenAI()
         self._model_name = model_name
+        self.model_name = model_name
 
     def generate(self, messages: list[dict]) -> str:
         try:

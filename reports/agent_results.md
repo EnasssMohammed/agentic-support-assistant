@@ -1,5 +1,9 @@
 # Full Agent Results (retrieval + diagnostics + escalation)
 
+- Provider / model: ollama / llama3.2:1b
+- Run date: 2026-10-07, before Hard Fault escalation was enforced in code
+  (see the addendum in reports/final_evaluation.md)
+
 Compare against reports/baseline_results.md for the same cases.
 
 ## n1
