@@ -11,6 +11,7 @@ def test_defaults_to_ollama_when_nothing_is_set(monkeypatch):
 
 def test_follows_model_provider_env_var(monkeypatch):
     monkeypatch.setenv("MODEL_PROVIDER", "OpenAI")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     assert resolve_provider() == "openai"
 
 
@@ -21,5 +22,10 @@ def test_explicit_argument_overrides_env(monkeypatch):
 
 def test_unsupported_provider_is_rejected(monkeypatch):
     monkeypatch.setenv("MODEL_PROVIDER", "banana")
-    with pytest.raises(ValueError, match="not supported"):
+    with pytest.raises(ValueError, match="MODEL_PROVIDER"):
         resolve_provider()
+
+
+def test_unsupported_explicit_provider_is_rejected():
+    with pytest.raises(ValueError, match="not supported"):
+        resolve_provider("banana")

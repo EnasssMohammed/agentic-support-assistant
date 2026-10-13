@@ -7,15 +7,13 @@ Provider is chosen via the MODEL_PROVIDER env var, so switching later
 is a one-line change in .env, not a code change.
 """
 import json
-import os
 from abc import ABC, abstractmethod
 
-from dotenv import load_dotenv
 from pydantic import BaseModel, ValidationError
 
 from src.logging_config import get_logger
+from src.settings import load_settings
 
-load_dotenv()
 logger = get_logger("model_client")
 
 
@@ -121,9 +119,10 @@ class OpenAIClient(ModelClient):
 
 
 def get_model_client() -> ModelClient:
-    """Factory: reads MODEL_PROVIDER from .env (defaults to Ollama)."""
-    provider = os.getenv("MODEL_PROVIDER", "ollama").lower()
-    logger.info(f"Initializing model client: provider={provider}")
-    if provider == "openai":
-        return OpenAIClient(model_name=os.getenv("MODEL_NAME", "gpt-4o-mini"))
-    return OllamaClient(model_name=os.getenv("MODEL_NAME", "llama3.1"))
+    """Factory: builds the client chosen by the validated settings (MODEL_PROVIDER, MODEL_NAME)."""
+    settings = load_settings()
+    model_name = settings.resolved_model_name
+    logger.info(f"Initializing model client: provider={settings.model_provider}, model={model_name}")
+    if settings.model_provider == "openai":
+        return OpenAIClient(model_name=model_name)
+    return OllamaClient(model_name=model_name)

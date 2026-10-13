@@ -6,6 +6,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Validated settings (`src/settings.py`, Pydantic): `MODEL_PROVIDER`, `MODEL_NAME` and `OPENAI_API_KEY` are checked
+  once, with clear errors, instead of being read with `os.getenv` in three places. A missing OpenAI key or a model
+  name that does not match the provider now fails at startup instead of mid-run.
 - `run_eval.py` writes one report per provider and model (`reports/agent_results_<provider>_<model>.md`)
   and starts it with a summary table scoring the escalate / don't-escalate decision against the eval set.
 
