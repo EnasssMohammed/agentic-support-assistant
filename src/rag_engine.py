@@ -3,7 +3,6 @@ import json
 import os
 from pathlib import Path
 
-from dotenv import load_dotenv
 from langchain_community.document_loaders import TextLoader
 from langchain_community.vectorstores import Chroma
 from langchain_ollama import OllamaEmbeddings
@@ -11,8 +10,8 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from src.logging_config import get_logger
+from src.settings import load_settings
 
-load_dotenv()
 logger = get_logger("rag_engine")
 
 SUPPORTED_PROVIDERS = ("ollama", "openai")
@@ -29,7 +28,7 @@ def resolve_provider(provider: str | None = None) -> str:
     The LLM (model_client.py) and the embeddings read the same switch, so changing
     MODEL_PROVIDER in .env moves both together and they can't drift apart.
     """
-    resolved = (provider or os.getenv("MODEL_PROVIDER", "ollama")).strip().lower()
+    resolved = (provider or load_settings().model_provider).strip().lower()
     if resolved not in SUPPORTED_PROVIDERS:
         raise ValueError(
             f"Provider '{resolved}' not supported. Choose one of: {', '.join(SUPPORTED_PROVIDERS)}."

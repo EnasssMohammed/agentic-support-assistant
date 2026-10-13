@@ -106,6 +106,8 @@ MODEL_PROVIDER=ollama
 MODEL_NAME=llama3.2:1b
 ```
 (Swap to `MODEL_PROVIDER=openai` + an `OPENAI_API_KEY` to use OpenAI instead — no code changes needed.)
+Settings are validated at startup (`src/settings.py`), so a missing key, or a model name that does not match the
+provider, fails immediately with a clear message.
 
 If using Ollama, make sure the model and the embedding model are pulled:
 ```bash

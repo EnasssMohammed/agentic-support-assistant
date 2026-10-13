@@ -15,6 +15,18 @@ LLM_TEST_FILES = {
 }
 
 
+CONFIG_VARIABLES = ("MODEL_PROVIDER", "MODEL_NAME", "OPENAI_API_KEY")
+
+
+@pytest.fixture(autouse=True)
+def isolate_configuration(request, monkeypatch):
+    """Unit tests must not depend on the developer's .env or shell. Live-model tests do need them."""
+    if request.node.get_closest_marker("requires_llm"):
+        return
+    for name in CONFIG_VARIABLES:
+        monkeypatch.delenv(name, raising=False)
+
+
 def pytest_collection_modifyitems(items):
     for item in items:
         if item.path.name in LLM_TEST_FILES:
