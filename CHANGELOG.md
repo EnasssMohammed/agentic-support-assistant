@@ -5,6 +5,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `run_eval.py` writes one report per provider and model (`reports/agent_results_<provider>_<model>.md`)
+  and starts it with a summary table scoring the escalate / don't-escalate decision against the eval set.
+
+### Fixed
+- `run_eval.py` crashed on a case that failed safely (no decision to print) and overwrote the previous
+  model's results on every run. It now reports the failure and keeps results per model.
+
 ## [1.2.0] - 2026-10-12
 
 ### Fixed

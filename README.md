@@ -127,6 +127,7 @@ uv run ruff check .
 
 # Run the full agent against the frozen eval set and generate the comparison report
 uv run python run_eval.py
+# -> writes reports/agent_results_<provider>_<model>.md, with an escalation-match summary
 ```
 
 ## Project history
