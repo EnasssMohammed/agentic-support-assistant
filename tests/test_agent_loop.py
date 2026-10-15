@@ -16,13 +16,16 @@ def test_router_complaint_runs_diagnostic_then_terminates():
     print("\n--- Agent run result ---")
     print(f"Terminal state: {result.terminal_state}")
     print(f"Turns used: {result.turns_used}")
-    print(result.final_decision.model_dump_json(indent=2))
+    if result.final_decision is not None:
+        print(result.final_decision.model_dump_json(indent=2))
 
-    # The loop must always end in one of the defined terminal states.
+    # Any normal ending is fine. FAILED_SAFELY is not: against a live model it means the
+    # provider could not be reached or returned unusable output, and that should be visible.
     assert result.terminal_state in (
         TerminalState.RESOLVED,
+        TerminalState.AWAITING_CUSTOMER,
         TerminalState.ESCALATED,
         TerminalState.BUDGET_EXHAUSTED,
-    )
+    ), result.error_message
     # It must never exceed the turn budget.
     assert result.turns_used <= MAX_TURNS

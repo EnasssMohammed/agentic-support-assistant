@@ -14,6 +14,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
+from src.diagnostics import DiagnosticResult
 from src.schemas import AgentDecision
 
 TICKETS_DIR = Path("tickets")
@@ -23,6 +24,8 @@ class EscalationTicket(BaseModel):
     ticket_id: str
     created_at: str
     customer_message: str
+    conversation_transcript: str | None = None  # set when the conversation had several turns
+    diagnostic_result: DiagnosticResult | None = None
     agent_reasoning: str
     policy_cited: str
     suggested_human_action: str
@@ -32,12 +35,16 @@ def create_escalation_ticket(
     customer_message: str,
     decision: AgentDecision,
     retrieved_policy: str,
+    conversation_transcript: str | None = None,
+    diagnostic: DiagnosticResult | None = None,
 ) -> EscalationTicket:
     """Builds the context package and persists it as a reviewable ticket."""
     ticket = EscalationTicket(
         ticket_id=str(uuid.uuid4())[:8],
         created_at=datetime.now(timezone.utc).isoformat(),
         customer_message=customer_message,
+        conversation_transcript=conversation_transcript,
+        diagnostic_result=diagnostic,
         agent_reasoning=decision.reasoning,
         policy_cited=retrieved_policy,
         suggested_human_action=decision.response_to_user or "Review and contact the customer.",
