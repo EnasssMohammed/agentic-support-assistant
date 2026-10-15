@@ -6,6 +6,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Conversation state (`src/conversation.py`, Pydantic): `VeloAgent.reply(conversation, message)` keeps the messages, the
+  diagnostic result and the ticket across customer messages; `run(message)` is still the single-message shortcut.
+- Policy Rule #2 enforced in code: a customer still writing after 3 agent replies is escalated automatically
+  (the knowledge base required this, but nothing implemented it).
+- `AWAITING_CUSTOMER` terminal state for replies that ask a clarifying question; these were reported as `RESOLVED`.
+- Escalation tickets now include the diagnostic result and, for multi-turn conversations, the transcript.
+- `main.py` is a multi-turn CLI (`/new`, `/quit`).
 - Validated settings (`src/settings.py`, Pydantic): `MODEL_PROVIDER`, `MODEL_NAME` and `OPENAI_API_KEY` are checked
   once, with clear errors, instead of being read with `os.getenv` in three places. A missing OpenAI key or a model
   name that does not match the provider now fails at startup instead of mid-run.
@@ -13,6 +20,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and starts it with a summary table scoring the escalate / don't-escalate decision against the eval set.
 
 ### Fixed
+- `main.py` crashed when a reply failed safely (no decision to print).
+- The diagnostic "at most once per conversation" rule only held within one message; it now holds across the conversation.
 - `run_eval.py` crashed on a case that failed safely (no decision to print) and overwrote the previous
   model's results on every run. It now reports the failure and keeps results per model.
 

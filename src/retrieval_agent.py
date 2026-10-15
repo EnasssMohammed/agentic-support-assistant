@@ -31,6 +31,9 @@ Rules:
   conversation, you MUST NOT choose run_diagnostic again. Decide using
   the result you already have. A diagnostic outcome the customer states in
   their own message (for example "Hard Fault") counts as a diagnostic result.
+- If a CONVERSATION SO FAR section is present, take it into account: do not ask
+  for information the customer already gave, and do not repeat an answer that
+  did not help.
 - Cite the specific rule you used in `reasoning`.
 """
 
@@ -40,13 +43,14 @@ class RetrievalAgent:
         self.model = model
         self.rag = rag
 
-    def decide(self, user_message: str) -> AgentDecision:
+    def decide(self, user_message: str, history: str = "") -> AgentDecision:
         retrieved_context = self.rag.retrieve(user_message)
+        conversation_block = f"CONVERSATION SO FAR:\n{history}\n\n" if history else ""
 
         user_prompt = f"""RETRIEVED POLICY PASSAGE:
 {retrieved_context}
 
-CUSTOMER MESSAGE:
+{conversation_block}CUSTOMER MESSAGE:
 {user_message}"""
 
         return self.model.generate_structured(

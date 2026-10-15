@@ -1,29 +1,48 @@
 """
-Velo — interactive CLI entry point.
+Velo — interactive multi-turn CLI.
 
-For the full evaluation run instead, use `run_eval.py`.
+One Conversation is kept for the whole session, so the agent sees the earlier messages and
+applies the "not resolved within 3 turns" rule. Type /new for a fresh conversation and
+/quit to exit. For the full evaluation run, use `run_eval.py`.
 """
-from src.agent_loop import VeloAgent
+from collections.abc import Callable
+
+from src.agent_loop import InvalidInputError, VeloAgent
+from src.conversation import Conversation
 from src.model_client import get_model_client
 from src.rag_engine import RAGEngine
 
 
-def main():
-    print("Velo support agent (type 'quit' to exit)\n")
-    agent = VeloAgent(model=get_model_client(), rag=RAGEngine())
+def main(agent: VeloAgent | None = None, input_fn: Callable[[str], str] = input) -> None:
+    if agent is None:
+        agent = VeloAgent(model=get_model_client(), rag=RAGEngine())
+    print("Velo support agent (/new = new conversation, /quit = exit)\n")
+    conversation = Conversation()
 
     while True:
-        user_message = input("You: ").strip()
-        if user_message.lower() in ("quit", "exit"):
+        text = input_fn("You: ").strip()
+        if text.lower() in ("/quit", "quit", "exit"):
             break
-        if not user_message:
+        if text.lower() == "/new":
+            conversation = Conversation()
+            print("(new conversation)\n")
+            continue
+        if not text:
             continue
 
-        result = agent.run(user_message)
-        print(f"\n[{result.terminal_state.value}, {result.turns_used} turn(s)]")
-        print(f"Velo: {result.final_decision.response_to_user}")
+        try:
+            result = agent.reply(conversation, text)
+        except InvalidInputError as e:
+            print(f"({e})\n")
+            continue
+
+        print(f"\n[{result.terminal_state.value}, {result.turns_used} model turn(s)]")
+        if result.final_decision is None:
+            print(f"Velo could not answer right now ({result.error_message}). Please send it again.")
+        else:
+            print(f"Velo: {result.final_decision.response_to_user}")
         if result.ticket:
-            print(f"(Escalation ticket created: {result.ticket.ticket_id})")
+            print(f"(Escalation ticket: {result.ticket.ticket_id})")
         print()
 
 

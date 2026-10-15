@@ -8,9 +8,10 @@ implementation of the Fin.ai agentic pattern: knowledge retrieval, safe
 diagnostics, a bounded resolution workflow, and escalation to a human with
 a full context package when the agent can't resolve the issue itself.
 
-Current version: **v1.2.0** — all minimum evidence requirements implemented
-and evaluated. See [`reports/final_evaluation.md`](reports/final_evaluation.md)
-for the full before/after analysis against a non-agentic baseline.
+Implements the Level 2 requirements: knowledge retrieval, diagnostic tools, multi-turn conversation
+state, and escalation with a context package. The evaluation compares the agent with a non-agentic
+baseline on single-message cases (see [`reports/final_evaluation.md`](reports/final_evaluation.md));
+multi-turn behaviour is covered by deterministic unit tests, not by the evaluation set.
 
 ---
 
@@ -49,7 +50,17 @@ Customer message
 
 ### Failure handling
 
-Every run ends in a defined terminal state: `RESOLVED`, `ESCALATED`, `BUDGET_EXHAUSTED`, or `FAILED_SAFELY`. Provider errors and malformed model output are caught (`ModelClientError`), logged, and returned as `FAILED_SAFELY` instead of crashing; the single-diagnostic rule is enforced in code, not only in the prompt.
+Every reply ends in a defined terminal state: `RESOLVED`, `AWAITING_CUSTOMER` (the agent asked a question), `ESCALATED`, `BUDGET_EXHAUSTED`, or `FAILED_SAFELY`. Provider errors and malformed model output are caught (`ModelClientError`), logged, and returned as `FAILED_SAFELY` instead of crashing; the conversation is left exactly as it was, so the customer can resend.
+
+### Conversation state and policy checks
+
+`VeloAgent.reply(conversation, message)` handles one customer message inside a `Conversation` (a Pydantic model holding the messages, the diagnostic result and the ticket), so the agent sees the earlier turns. These policies are enforced in code, not only in the prompt, because small local models do not always follow them:
+
+* **Rule #1:** a Hard Fault, stated by the customer or returned by the diagnostic tool, is escalated immediately.
+* **Rule #2:** a customer still writing after 3 agent replies is escalated automatically, and the ticket carries the whole conversation.
+* The diagnostic tool runs at most once per conversation, and a conversation that is already escalated never gets a second ticket.
+
+Escalation tickets contain the customer message, the conversation transcript, the diagnostic result, the policy cited, and the agent's reasoning.
 
 ## Tech Stack
 
@@ -84,7 +95,8 @@ velo/
 │   ├── retrieval_agent.py     # Grounds decisions in retrieved policy
 │   ├── diagnostics.py         # Mock router diagnostic tool
 │   ├── escalation.py          # Escalation ticket (context package) tool
-│   ├── agent_loop.py          # Bounded decide → diagnose → decide loop
+│   ├── agent_loop.py          # Bounded decide → diagnose → decide loop, per conversation
+│   ├── conversation.py        # Conversation state (messages, diagnostic, ticket)
 │   ├── logging_config.py      # Console + file logging
 │   └── baseline.py            # Non-agentic baseline (for comparison only)
 ├── tests/                     # Unit tests (fake model, run in CI) + LLM tests (local only)

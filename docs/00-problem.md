@@ -30,8 +30,12 @@ escalating immediately).
 | Latency       | Target < 60s per run (not yet met locally — see `reports/final_evaluation.md`) |
 | Human oversight | Escalation tickets (`tickets/*.json`) are reviewable before any follow-up action |
 
-Terminal states (implemented in `src/agent_loop.py`): `RESOLVED`, `ESCALATED`,
-`BUDGET_EXHAUSTED`.
+Terminal states (implemented in `src/agent_loop.py`): `RESOLVED`, `AWAITING_CUSTOMER`,
+`ESCALATED`, `BUDGET_EXHAUSTED`, `FAILED_SAFELY`.
+
+Conversation state (`src/conversation.py`): the agent keeps the messages, the diagnostic result and
+the ticket across customer messages. This is what lets it apply the knowledge base's rule that an issue
+not resolved within 3 interaction turns is escalated automatically (Policy Rule #2), in code.
 
 ## PEAS
 - **Performance:** correct answers grounded in the knowledge base; correct escalation
