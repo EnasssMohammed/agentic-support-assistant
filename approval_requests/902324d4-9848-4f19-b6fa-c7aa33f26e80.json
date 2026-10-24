@@ -1,0 +1,11 @@
+{
+  "request_id": "902324d4-9848-4f19-b6fa-c7aa33f26e80",
+  "ticket_id": "7074877a",
+  "proposed_action": "Issue was not resolved by guided troubleshooting. Review the transcript to see which steps were already tried, then contact the customer with a different approach.",
+  "evidence": "[Source: technical_docs.txt > 1. HARDWARE DIAGNOSTICS & ERROR TROUBLESHOOTING > Diagnostic Result: 'Software Glitch']\n1. HARDWARE DIAGNOSTICS & ERROR TROUBLESHOOTING\n- [Diagnostic Result: 'Software Glitch']:\n  Status: System is fully recoverable via remote reboot, firmware update, or cache reset.\n---\n[Source: technical_docs.txt > 1. HARDWARE DIAGNOSTICS & ERROR TROUBLESHOOTING > Error 500 - Router Connection Fault]\n1. HARDWARE DIAGNOSTICS & ERROR TROUBLESHOOTING\n- [Error 500 - Router Connection Fault]:\n  Symptoms: Red Internet LED, no connectivity.\n  Action: Restart the router by unplugging the power cable for 30 seconds. Check the WAN cable connection.\n---\n[Source: technical_docs.txt > 1. HARDWARE DIAGNOSTICS & ERROR TROUBLESHOOTING > Diagnostic Result: 'Hard Fault']\n1. HARDWARE DIAGNOSTICS & ERROR TROUBLESHOOTING\n- [Diagnostic Result: 'Hard Fault']:\n  Status: Indicates critical hardware failure (e.g., Network Card or Motherboard damage).\n  Action: Non-recoverable via user steps. Must escalate to human team immediately.",
+  "status": "Pending",
+  "created_at": "2026-10-19T10:57:36.508344+00:00",
+  "employee_id": null,
+  "decided_at": null,
+  "rejection_reason": null
+}

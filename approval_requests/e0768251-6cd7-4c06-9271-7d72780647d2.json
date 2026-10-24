@@ -1,0 +1,11 @@
+{
+  "request_id": "e0768251-6cd7-4c06-9271-7d72780647d2",
+  "ticket_id": "ad66309f",
+  "proposed_action": "Review the agent's reasoning and the customer's request, then contact the customer.",
+  "evidence": "[Source: technical_docs.txt > 4. ACCOUNT & ACCESS CONTROL > Locked Account]\n4. ACCOUNT & ACCESS CONTROL\n- [Locked Account]:\n  System locks after 3 failed password attempts. Resolution: Trigger automated password reset link via registered email.\n---\n[Source: technical_docs.txt > 2. SYSTEM ESCALATION & CRITIC POLICY (MANDATORY RULES) > Policy Rule #2 - Maximum Retry Limit]\n2. SYSTEM ESCALATION & CRITIC POLICY (MANDATORY RULES)\n- [Policy Rule #2 - Maximum Retry Limit]:\n  If an issue is not resolved within 3 interaction turns, the workflow must automatically trigger ticket creation and route the conversation to human support.",
+  "status": "Pending",
+  "created_at": "2026-10-22T20:53:41.636220+00:00",
+  "employee_id": null,
+  "decided_at": null,
+  "rejection_reason": null
+}

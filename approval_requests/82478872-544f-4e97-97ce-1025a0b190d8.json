@@ -1,0 +1,11 @@
+{
+  "request_id": "82478872-544f-4e97-97ce-1025a0b190d8",
+  "ticket_id": "9c1dec54",
+  "proposed_action": "Hardware fault confirmed by diagnostic (Critical hardware failure detected (network card/motherboard).). Arrange maintenance or device replacement and contact the customer to schedule it.",
+  "evidence": "[Source: technical_docs.txt > 1. HARDWARE DIAGNOSTICS & ERROR TROUBLESHOOTING > Error 500 - Router Connection Fault]\n1. HARDWARE DIAGNOSTICS & ERROR TROUBLESHOOTING\n- [Error 500 - Router Connection Fault]:\n  Symptoms: Red Internet LED, no connectivity.\n  Action: Restart the router by unplugging the power cable for 30 seconds. Check the WAN cable connection.\n---\n[Source: technical_docs.txt > 1. HARDWARE DIAGNOSTICS & ERROR TROUBLESHOOTING > Diagnostic Result: 'Hard Fault']\n1. HARDWARE DIAGNOSTICS & ERROR TROUBLESHOOTING\n- [Diagnostic Result: 'Hard Fault']:\n  Status: Indicates critical hardware failure (e.g., Network Card or Motherboard damage).\n  Action: Non-recoverable via user steps. Must escalate to human team immediately.\n---\n[Source: technical_docs.txt > 4. ACCOUNT & ACCESS CONTROL > Locked Account]\n4. ACCOUNT & ACCESS CONTROL\n- [Locked Account]:\n  System locks after 3 failed password attempts. Resolution: Trigger automated password reset link via registered email.",
+  "status": "Pending",
+  "created_at": "2026-10-23T15:34:14.199627+00:00",
+  "employee_id": null,
+  "decided_at": null,
+  "rejection_reason": null
+}

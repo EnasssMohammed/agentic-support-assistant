@@ -1,0 +1,11 @@
+{
+  "request_id": "d6933aa7-056f-4118-8fa2-1435b59df581",
+  "ticket_id": "d49cae3d",
+  "proposed_action": "لم نتمكن من حل المشكلة بعد الوصول للحد الأقصى للمحاولات (3 ردود). قمنا بتصعيد التذكرة إلى فريق الدعم الفني المختص مع ملف التتبع الكامل لحالتك.",
+  "evidence": "- [Diagnostic Result: 'Software Glitch']:\n  Status: System is fully recoverable via remote reboot, firmware update, or cache reset.\n---\n- [Diagnostic Result: 'Hard Fault']:\n  Status: Indicates critical hardware failure (e.g., Network Card or Motherboard damage). \n  Action: Non-recoverable via user steps. Must escalate to human team immediately.\n---\n1. HARDWARE DIAGNOSTICS & ERROR TROUBLESHOOTING\n--------------------------------------------------------------------\n- [Error 500 - Router Connection Fault]:\n  Symptoms: Red Internet LED, no connectivity.",
+  "status": "Pending",
+  "created_at": "2026-10-18T18:05:03.536030+00:00",
+  "employee_id": null,
+  "decided_at": null,
+  "rejection_reason": null
+}
