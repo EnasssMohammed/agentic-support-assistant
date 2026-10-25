@@ -133,6 +133,14 @@ def render_report(meta: dict, outcomes: list[CaseOutcome], excerpts: dict, k: in
     overall = summary["overall"]
 
     arm = meta.get("arm", "agent")
+    if arm != "agent" and decision != "INVALID RUN":
+        # An ablation arm has no ticket or diagnostic tool, so a GO label would be misleading.
+        decision = "N/A (ablation arm)"
+        verdict = ["Not a release decision. Read the gates and the scorecard as comparison evidence."]
+    elif decision == "CONDITIONAL GO":
+        verdict = ["Budgets exceeded. Record in the release notes why this is acceptable:"] + [f"- {r}" for r in reasons]
+    else:
+        verdict = ["Blocked by:"] + [f"- {r}" for r in reasons] if reasons else ["All gates pass."]
     lines = [f"# Velo evaluation v2 ({arm}): {meta['provider']} / {meta['model']}", ""]
     if arm != "agent":
         lines += [f"> **ABLATION ARM: `{arm}`.** Comparison evidence for the full agent. It has no escalation "
@@ -151,12 +159,7 @@ def render_report(meta: dict, outcomes: list[CaseOutcome], excerpts: dict, k: in
         "",
         f"## Release decision: **{'DRY RUN (not a release decision)' if meta['dry_run'] else decision}**",
         "",
-        *(
-            ["Budgets exceeded. Record in the release notes why this is acceptable:"]
-            + [f"- {r}" for r in reasons]
-            if decision == "CONDITIONAL GO"
-            else ["Blocked by:"] + [f"- {r}" for r in reasons] if reasons else ["All gates pass."]
-        ),
+        *verdict,
         "",
         "## Gates",
         "",
@@ -353,7 +356,8 @@ def main(argv: list[str] | None = None) -> int:
                         print(f"  - {check}: {detail}")
             if excerpts.get(o.case_id):
                 print(f"  last reply: {excerpts[o.case_id]}")
-    return 1 if args.gate and not args.dry_run and raw["decision"] not in ("GO", "CONDITIONAL GO") else 0
+    gated = args.gate and not args.dry_run and args.arm == "agent"
+    return 1 if gated and raw["decision"] not in ("GO", "CONDITIONAL GO") else 0
 
 
 if __name__ == "__main__":

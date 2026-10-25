@@ -105,6 +105,7 @@ def test_dry_run_writes_a_report_named_after_the_arm(tmp_path, monkeypatch, arm,
     reports = _dry(tmp_path, monkeypatch, arm)
     data = json.loads((reports / f"{stem}.json").read_text(encoding="utf-8"))
     assert data["meta"]["arm"] == arm
+    assert (data["decision"] == "N/A (ablation arm)") == (arm != "agent")
     text = (reports / f"{stem}.md").read_text(encoding="utf-8")
     assert (f"ABLATION ARM: `{arm}`" in text) == (arm != "agent")
 
@@ -154,3 +155,11 @@ def test_injected_model_failure_is_handled_by_every_arm(tmp_path, monkeypatch):
         data = json.loads((tmp_path / "reports" / f"{stem}_dry-run_stub.json").read_text(encoding="utf-8"))
         gate = next(g for g in data["gates"] if g["name"] == "No unhandled errors")
         assert gate["ok"], stem
+
+
+def test_comparison_never_shows_a_release_label_for_an_ablation_arm():
+    """Regression: a baseline run on a small subset printed CONDITIONAL GO."""
+    baseline = _fake_report("baseline", 0.3)
+    baseline["decision"] = "CONDITIONAL GO"
+    text = compare_arms.render({"baseline": baseline, "agent": _fake_report("agent", 0.9)})
+    assert "| Decision | n/a (ablation) | NO-GO |" in text

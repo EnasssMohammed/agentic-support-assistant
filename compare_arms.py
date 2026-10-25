@@ -66,7 +66,7 @@ def render(reports: dict[str, dict]) -> str:
         row("Latency p95 per reply", lambda r: f"{r['summary']['latency_p95']:.1f}s"),
         row("Blocking gates passed",
             lambda r: f"{sum(g['ok'] for g in r['gates'] if g['blocking'])}/{sum(g['blocking'] for g in r['gates'])}"),
-        row("Decision", lambda r: r["decision"]),
+        row("Decision", lambda r: r["decision"] if r["meta"].get("arm", "agent") == "agent" else "n/a (ablation)"),
         "",
         f"## pass^{k} by family",
         "",
