@@ -51,11 +51,19 @@ def make_agent(script) -> tuple[VeloAgent, ScriptedModel]:
     return VeloAgent(model=model, rag=FakeRAG()), model
 
 
+
 def fix_diagnostic(monkeypatch, status: DiagnosticStatus) -> None:
     """Replace the random mock diagnostic with a fixed result."""
+
+    def _fixed_diagnostic(forced_status=None, device_id="mock-router-01"):
+        return DiagnosticResult(
+            status=forced_status if forced_status is not None else status,
+            detail="fixed for test",
+        )
+
     monkeypatch.setattr(
         "src.agent_loop.run_router_diagnostic",
-        lambda: DiagnosticResult(status=status, detail="fixed for test"),
+        _fixed_diagnostic,
     )
 
 
@@ -80,20 +88,20 @@ def test_invalid_input_is_rejected_before_calling_the_model(bad_message):
     assert model.calls == 0
 
 
-def test_direct_answer_resolves_in_one_turn():
+def test_direct_answer_awaits_confirmation_in_one_turn():
     agent, _ = make_agent([make_decision(ActionType.ANSWER)])
     result = agent.run("How do I reset my password?")
-    assert result.terminal_state == TerminalState.RESOLVED
+    assert result.terminal_state == TerminalState.AWAITING_CUSTOMER
     assert result.turns_used == 1
 
 
-def test_diagnostic_then_answer_resolves_in_two_turns(monkeypatch):
+def test_diagnostic_then_answer_awaits_confirmation_after_two_turns(monkeypatch):
     fix_diagnostic(monkeypatch, DiagnosticStatus.OK)
     agent, model = make_agent(
         [make_decision(ActionType.RUN_DIAGNOSTIC), make_decision(ActionType.ANSWER)]
     )
     result = agent.run("My router has no internet.")
-    assert result.terminal_state == TerminalState.RESOLVED
+    assert result.terminal_state == TerminalState.AWAITING_CUSTOMER
     assert result.turns_used == 2
     assert model.calls == 2
 
@@ -113,15 +121,19 @@ def test_escalation_flag_wins_even_if_action_says_answer():
 
 
 def test_second_diagnostic_request_is_blocked_by_policy_check(monkeypatch):
-    """The documented failure/recovery case: the model ignores the
-    'diagnose at most once' rule and the code stops it, instead of looping."""
+    """The documented failure/recovery case: the model ignores 'diagnose at most once'.
+    The code rejects the request and the model re-plans to a usable answer."""
     fix_diagnostic(monkeypatch, DiagnosticStatus.OK)
     agent, model = make_agent(
-        [make_decision(ActionType.RUN_DIAGNOSTIC), make_decision(ActionType.RUN_DIAGNOSTIC)]
+        [
+            make_decision(ActionType.RUN_DIAGNOSTIC),
+            make_decision(ActionType.RUN_DIAGNOSTIC),  # rejected by policy
+            make_decision(ActionType.ANSWER),          # the model re-plans
+        ]
     )
     result = agent.run("My router has no internet.")
-    assert result.terminal_state == TerminalState.BUDGET_EXHAUSTED
-    assert model.calls == 2  # it did not keep looping
+    assert result.terminal_state == TerminalState.AWAITING_CUSTOMER  # recovered, not abandoned
+    assert model.calls == 3
 
 
 def test_model_failure_fails_safely_instead_of_crashing():
@@ -156,9 +168,12 @@ def test_measured_hard_fault_escalates_without_a_second_model_call(monkeypatch):
     assert model.calls == 1  # the escalation did not wait for another model decision
 
 
-def test_customer_reported_software_glitch_does_not_rerun_the_diagnostic(monkeypatch):
-    forbid_diagnostic(monkeypatch)
-    agent, model = make_agent([make_decision(ActionType.ANSWER)])
+def test_customer_reported_software_glitch_does_not_replace_the_real_diagnostic(monkeypatch):
+    """A customer's claim is not tool output: the diagnostic still runs before any guidance."""
+    fix_diagnostic(monkeypatch, DiagnosticStatus.OK)
+    agent, model = make_agent([make_decision(ActionType.ANSWER), make_decision(ActionType.ANSWER)])
     result = agent.run("The diagnostic says software glitch on my router.")
-    assert result.terminal_state == TerminalState.RESOLVED
-    assert model.calls == 1
+    assert result.terminal_state == TerminalState.AWAITING_CUSTOMER
+    assert model.calls == 2  # the first ANSWER triggered the policy diagnostic, then the real answer
+
+

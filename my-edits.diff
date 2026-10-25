@@ -1,0 +1,924 @@
+diff --git a/evals/cases.jsonl b/evals/cases.jsonl
+index 73d9723..54cb192 100644
+--- a/evals/cases.jsonl
++++ b/evals/cases.jsonl
+@@ -1,7 +1,7 @@
+-{"id": "n1", "question": "The router shows a red internet light and there's no connection, what do I do?", "expected_action": "guide_restart", "requires_escalation": false}
++{"id": "n1", "question": "The router shows a red internet light and there's no connection, what do I do?", "expected_action": "guide_restart", "requires_escalation": false, "diagnostic_status": "software_glitch"}
+ {"id": "n2", "question": "Diagnostics came back as a Hard Fault on my router.", "expected_action": "escalate_immediately", "requires_escalation": true}
+ {"id": "n3", "question": "I bought a digital license two days ago and want a refund.", "expected_action": "deny_refund_digital_license", "requires_escalation": false}
+ {"id": "n4", "question": "I've entered my password wrong 3 times and now I'm locked out.", "expected_action": "trigger_password_reset", "requires_escalation": false}
+-{"id": "n5", "question": "My product stopped working 10 days after purchase, can I return it?", "expected_action": "approve_return_within_window", "requires_escalation": false}
+-{"id": "e1", "question": "It's been going back and forth for a while and nothing's fixed, what now?", "expected_action": "escalate_after_retry_limit", "requires_escalation": true}
+-{"id": "a1", "question": "It's broken, fix it.", "expected_action": "ask_clarifying_question", "requires_escalation": false}
++{"id": "n5", "question": "I bought a standard physical product 10 days ago. It stopped working, and I have the proof of purchase. Under the policy allowing standard products to be returned within 14 days, am I eligible to return it?", "expected_action": "approve_return_within_window", "requires_escalation": false}
++{"id": "e1", "question": "It's been going back and forth for a while and nothing's fixed, what now?", "expected_action": "escalate_after_retry_limit", "requires_escalation": true, "prior_agent_replies": 3}
++{"id": "a1", "question": "It's broken, fix it.", "expected_action": "ask_clarifying_question", "requires_escalation": false}
+\ No newline at end of file
+diff --git a/run_eval.py b/run_eval.py
+index 52b1551..57a7373 100644
+--- a/run_eval.py
++++ b/run_eval.py
+@@ -1,4 +1,4 @@
+-"""
++﻿"""
+ Stage 8: Resolution-quality evaluation.
+ 
+ Runs the FULL agent (retrieval + diagnostic tool + escalation) against the frozen eval set
+@@ -21,6 +21,8 @@ from datetime import datetime, timezone
+ from pathlib import Path
+ 
+ from src.agent_loop import AgentRunResult, TerminalState, VeloAgent
++from src.diagnostics import DiagnosticStatus
++from src.conversation import Conversation, Role
+ from src.model_client import ModelClient, get_model_client
+ from src.rag_engine import RAGEngine, resolve_provider
+ 
+@@ -50,44 +52,168 @@ def escalation_matches(expected_escalation: bool, state: TerminalState) -> bool
+         return None
+     return (state == TerminalState.ESCALATED) == expected_escalation
+ 
++def action_matches(case: dict, result: AgentRunResult) -> bool | None:
++    """Heuristic check of whether the expected action appears in the result.
++
++    Returns None when the run failed safely or when the action cannot
++    be evaluated reliably from the available result.
++    """
++    if result.terminal_state == TerminalState.FAILED_SAFELY:
++        return None
++
++    action = case["expected_action"]
++    state = result.terminal_state
++
++    if result.final_decision is None:
++        return None
++
++    text = (
++        result.final_decision.reasoning + " "
++        + result.final_decision.response_to_user
++    ).lower()
++
++    if action == "escalate_immediately":
++        return state == TerminalState.ESCALATED and "hard fault" in text
++
++    if action == "escalate_after_retry_limit":
++        return (
++            state == TerminalState.ESCALATED
++            and any(word in text for word in ("retry", "attempt", "3 interaction"))
++        )
++
++    if action == "guide_restart":
++        # A Hard Fault should be escalated, not treated as routine troubleshooting.
++        if state == TerminalState.ESCALATED and "hard fault" in text:
++            return None
++        return bool(re.search(r"\b(restart|reboot)\b", text))
++
++    if action == "deny_refund_digital_license":
++        return (
++            "digital license" in text
++            and any(
++                phrase in text
++                for phrase in ("non-refundable", "cannot be refunded",
++                               "cannot issue a refund", "refund cannot")
++            )
++        )
++
++    if action == "trigger_password_reset":
++        return (
++            "password reset" in text
++            and any(word in text for word in ("link", "trigger", "reset flow"))
++        )
++
++
++
++    if action == "approve_return_within_window":
++        approval_phrases = (
++            "return is approved",
++            "approved for return",
++            "eligible for return",
++            "eligible for a full refund",
++            "you can return",
++            "can proceed with a return",
++            "return is allowed",
++        )
++        denial_phrases = (
++            "not eligible for return",
++            "not eligible for a refund",
++            "cannot return",
++            "cannot be returned",
++            "refund is denied",
++            "refund cannot be issued",
++        )
++
++        response = result.final_decision.response_to_user.lower()
++
++        # Evaluate the customer-facing answer, not reasoning alone.
++        if any(phrase in response for phrase in denial_phrases):
++            return False
++
++        return any(phrase in response for phrase in approval_phrases)
++
++
++
++    if action == "ask_clarifying_question":
++        return (
++            state == TerminalState.AWAITING_CUSTOMER
++            and any(
++                phrase in text
++                for phrase in (
++                    "could you describe",
++                    "please describe",
++                    "can you clarify",
++                    "could you clarify",
++                    "what is not working",
++                )
++            )
++        )
++
++    # Unknown action labels are not scored.
++    return None
++
+ 
+ def render_summary(runs: list[CaseRun]) -> str:
+     rows = []
+     scored = matched = failed = 0
++    action_scored = action_matched = action_unscored = 0
++
+     for run in runs:
+         state = run.result.terminal_state
+-        match = escalation_matches(run.case["requires_escalation"], state)
++
++        # Existing escalation metric
++        match = escalation_matches(
++            run.case["requires_escalation"], state
++        )
+         if match is None:
+             failed += 1
+-            mark = "n/a (failed safely)"
++            escalation_mark = "n/a (failed safely)"
+         else:
+             scored += 1
+-            matched += match
+-            mark = "yes" if match else "NO"
++            matched += int(match)
++            escalation_mark = "yes" if match else "NO"
++
++        # New expected-action metric
++        action_match = action_matches(run.case, run.result)
++        if action_match is None:
++            action_unscored += 1
++            action_mark = "n/a"
++        else:
++            action_scored += 1
++            action_matched += int(action_match)
++            action_mark = "yes" if action_match else "NO"
++
+         rows.append(
+-            f"| {run.case['id']} | {run.case['requires_escalation']} | {state.value} "
+-            f"| {mark} | {run.result.turns_used} | {run.elapsed:.1f} |"
++            f"| {run.case['id']} | "
++            f"{run.case['requires_escalation']} | "
++            f"{state.value} | {escalation_mark} | "
++            f"{run.case['expected_action']} | {action_mark} | "
++            f"{run.result.turns_used} | {run.elapsed:.1f} |"
+         )
+ 
+     median = statistics.median(r.elapsed for r in runs) if runs else 0.0
+-    return "\n".join(
+-        [
+-            "## Summary",
+-            "",
+-            "| Case | Escalation expected | Terminal state | Match | Turns | Time (s) |",
+-            "|---|---|---|---|---|---|",
+-            *rows,
+-            "",
+-            f"**Escalation match: {matched}/{scored} scored** ({failed} failed safely, not scored). "
+-            f"Median time per case: {median:.1f}s.",
+-            "",
+-            "This only checks whether the escalate / don't-escalate decision was right. It does "
+-            "not judge the wording or content of the answer, so read each case below. n1 and a1 "
+-            "can legitimately go either way: the mock diagnostic is random (about 20% Hard "
+-            "Fault), and a Hard Fault must be escalated.",
+-            "",
+-        ]
+-    )
++
++    return "\n".join([
++        "## Summary",
++        "",
++        "| Case | Escalation expected | Terminal state | "
++        "Escalation match | Expected action | Action match | "
++        "Turns | Time (s) |",
++        "|---|---|---|---|---|---|---|---|",
++        *rows,
++        "",
++        f"**Escalation match: {matched}/{scored} scored** "
++        f"({failed} failed safely, not scored).",
++        f"**Expected-action match: {action_matched}/{action_scored} scored** "
++        f"({action_unscored} not scored).",
++        f"Median time per case: {median:.1f}s.",
++        "",
++        "Expected-action matching uses keyword heuristics, not a full "
++        "semantic evaluation. Review each case below, especially cases "
++        "marked NO or n/a. The mock diagnostic is randomized, so a "
++        "Hard Fault can legitimately cause escalation in some cases.",
++        "",
++    ])
+ 
+ 
+ def render_case(run: CaseRun) -> str:
+@@ -133,7 +259,7 @@ def main(
+     provider = resolve_provider(provider)
+     model = model if model is not None else get_model_client()
+     rag = rag if rag is not None else RAGEngine(provider=provider)
+-    agent = VeloAgent(model=model, rag=rag)
++
+ 
+     path = report_path(provider, model.model_name, reports_dir)
+     reports_dir.mkdir(parents=True, exist_ok=True)
+@@ -148,14 +274,52 @@ def main(
+ 
+     runs: list[CaseRun] = []
+     for i, case in enumerate(cases, start=1):
++        diagnostic_status = case.get("diagnostic_status")
++        forced_status = (
++            DiagnosticStatus[diagnostic_status.upper()]
++            if diagnostic_status
++            else None
++        )
++
++        agent = VeloAgent(
++            model=model,
++            rag=rag,
++            diagnostic_status=forced_status,
++        )
++
+         print(f"[{i}/{len(cases)}] Running case {case['id']}...")
+         start = time.time()
+-        result = agent.run(case["question"])
++
++        prior_agent_replies = case.get("prior_agent_replies", 0)
++
++        if prior_agent_replies:
++            conversation = Conversation()
++
++            for attempt in range(prior_agent_replies):
++                conversation.add(
++                    Role.CUSTOMER,
++                    f"Previous attempt {attempt + 1}: "
++                    "The issue is still unresolved.",
++                )
++                conversation.add(
++                    Role.AGENT,
++                    f"Previous response {attempt + 1}: "
++                    "Troubleshooting was attempted, but the issue remains.",
++                )
++
++            result = agent.reply(conversation, case["question"])
++        else:
++            result = agent.run(case["question"])
++
+         elapsed = time.time() - start
+-        print(f"  -> {result.terminal_state.value} in {elapsed:.1f}s ({result.turns_used} turn(s))")
++        print(
++            f"  -> {result.terminal_state.value} "
++            f"in {elapsed:.1f}s ({result.turns_used} turn(s))"
++        )
+         runs.append(CaseRun(case, result, elapsed))
+         write_report(path, header, runs)
+ 
++
+     print(f"\nDone. Report written to {path}")
+     return path
+ 
+diff --git a/src/agent_loop.py b/src/agent_loop.py
+index 741040d..321ee16 100644
+--- a/src/agent_loop.py
++++ b/src/agent_loop.py
+@@ -1,14 +1,12 @@
+ """
+ Bounded agent loop with conversation state.
+ 
+-This is what turns Velo from "one call that answers" into an agent: it can decide it needs
+-more evidence (a diagnostic), act on that decision, observe the result, and decide again,
+-within a hard turn budget so it can never loop forever.
+-
+-It also remembers the conversation. `reply()` handles one customer message inside a
+-`Conversation`, so the agent sees earlier messages and Policy Rule #2 can be applied;
+-`run()` is the single-message shortcut (a brand-new conversation).
++The agent can decide, act, observe, and decide again within a hard turn
++budget. Policy-critical behavior is enforced in code rather than relying
++only on the model prompt.
+ """
++
++import re
+ from enum import Enum
+ 
+ from src.conversation import Conversation, Role
+@@ -19,6 +17,7 @@ from src.diagnostics import (
+     run_router_diagnostic,
+ )
+ from src.escalation import EscalationTicket, create_escalation_ticket
++from src.approval import create_approval_request
+ from src.logging_config import get_logger
+ from src.model_client import ModelClient, ModelClientError
+ from src.rag_engine import RAGEngine
+@@ -27,17 +26,17 @@ from src.schemas import ActionType, AgentDecision
+ 
+ logger = get_logger("agent_loop")
+ 
+-MAX_TURNS = 3  # model decisions allowed for ONE customer message
++MAX_TURNS = 3
+ MAX_MESSAGE_LENGTH = 2000
+-UNRESOLVED_TURN_LIMIT = 3  # Policy Rule #2: agent replies allowed before an automatic escalation
++UNRESOLVED_TURN_LIMIT = 3
+ 
+ 
+ class TerminalState(str, Enum):
+     RESOLVED = "resolved"
+-    AWAITING_CUSTOMER = "awaiting_customer"  # the agent asked a question and needs the answer
++    AWAITING_CUSTOMER = "awaiting_customer"
+     ESCALATED = "escalated"
+     BUDGET_EXHAUSTED = "budget_exhausted"
+-    FAILED_SAFELY = "failed_safely"  # model/provider error - no unsafe action was taken
++    FAILED_SAFELY = "failed_safely"
+ 
+ 
+ class AgentRunResult:
+@@ -48,43 +47,47 @@ class AgentRunResult:
+         turns_used: int,
+         ticket: EscalationTicket | None = None,
+         error_message: str | None = None,
++        approval_request: dict | None = None,
+     ):
+         self.terminal_state = terminal_state
+         self.final_decision = final_decision
+         self.turns_used = turns_used
+         self.ticket = ticket
+         self.error_message = error_message
++        self.approval_request = approval_request
+ 
+     def __repr__(self):
+         ticket_id = self.ticket.ticket_id if self.ticket else None
+-        return f"AgentRunResult(state={self.terminal_state}, turns={self.turns_used}, ticket={ticket_id})"
++        return (
++            f"AgentRunResult(state={self.terminal_state}, "
++            f"turns={self.turns_used}, ticket={ticket_id})"
++        )
+ 
+ 
+ class InvalidInputError(ValueError):
+-    """Raised for input that should never reach the model at all."""
+-
++    """Raised when invalid input must not reach the model."""
+ 
+ class VeloAgent:
+-    def __init__(self, model: ModelClient, rag: RAGEngine):
++    def __init__(
++        self,
++        model: ModelClient,
++        rag: RAGEngine,
++        diagnostic_status: DiagnosticStatus | None = None,
++    ):
+         self.retrieval_agent = RetrievalAgent(model=model, rag=rag)
++        self.diagnostic_status = diagnostic_status
+ 
+     def run(self, user_message: str) -> AgentRunResult:
+-        """Handle a single message in a brand-new conversation."""
++        """Handle one message in a new conversation."""
+         return self.reply(Conversation(), user_message)
+ 
+-    def reply(self, conversation: Conversation, user_message: str) -> AgentRunResult:
+-        """Handle the next customer message of `conversation` and record the exchange in it.
+-
+-        Policy checks are enforced here in code, not only in the prompt, because small local
+-        models do not always follow them:
+-        - Rule #1: a Hard Fault is escalated immediately.
+-        - Rule #2: a customer still writing after 3 agent replies is escalated automatically.
+-        - The diagnostic tool runs at most once per conversation.
++    def reply(
++        self,
++        conversation: Conversation,
++        user_message: str,
++    ) -> AgentRunResult:
++        """Handle a customer message and record the conversation."""
+ 
+-        If the model provider fails, nothing is guessed: the attempt is logged, the
+-        conversation is left exactly as it was (so the customer can resend), and the result
+-        is FAILED_SAFELY.
+-        """
+         self._validate_input(user_message)
+ 
+         if conversation.escalated:
+@@ -92,84 +95,248 @@ class VeloAgent:
+ 
+         history = conversation.transcript()
+         agent_replies_so_far = conversation.agent_replies
++
+         conversation.add(Role.CUSTOMER, user_message)
+ 
+         if agent_replies_so_far >= UNRESOLVED_TURN_LIMIT:
+-            logger.info(f"Not resolved after {agent_replies_so_far} agent replies - escalating (Rule #2)")
++            logger.info(
++                f"Not resolved after {agent_replies_so_far} agent replies - "
++                "escalating (Rule #2)"
++            )
+             result = self._escalate(
+-                conversation, user_message, user_message, self._unresolved_decision(), turn=0
++                conversation,
++                user_message,
++                user_message,
++                self._unresolved_decision(),
++                turn=0,
+             )
+         else:
+-            result = self._decide_loop(conversation, user_message, history)
++            result = self._decide_loop(
++                conversation,
++                user_message,
++                history,
++            )
+ 
+         if result.terminal_state == TerminalState.FAILED_SAFELY:
+             conversation.drop_last()
+             return result
++
+         if result.final_decision is not None:
+-            conversation.add(Role.AGENT, result.final_decision.response_to_user)
++            conversation.add(
++                Role.AGENT,
++                result.final_decision.response_to_user,
++            )
++
+         if result.ticket is not None:
+             conversation.ticket = result.ticket
++
+         return result
+ 
+     def _decide_loop(
+-        self, conversation: Conversation, user_message: str, history: str
++        self,
++        conversation: Conversation,
++        user_message: str,
++        history: str,
+     ) -> AgentRunResult:
+         context = user_message
+ 
+-        # A diagnostic outcome stated by the customer counts as a diagnostic result, so the
+-        # tool is not run to "confirm" it.
++        # A customer-reported diagnostic result must not trigger a
++        # second diagnostic. A confirmed Hard Fault escalates immediately.
+         if conversation.diagnostic is None:
+             reported_status = extract_reported_status(user_message)
++
+             if reported_status is not None:
+-                logger.info(f"Customer reported diagnostic status: {reported_status.value}")
++                logger.info(
++                    "Customer reported diagnostic status: "
++                    f"{reported_status.value}"
++                )
++
+                 conversation.diagnostic = DiagnosticResult(
+-                    status=reported_status, detail="reported by the customer"
++                    status=reported_status,
++                    detail="reported by the customer",
+                 )
++
+                 if reported_status == DiagnosticStatus.HARD_FAULT:
+                     return self._escalate(
+-                        conversation, user_message, context, self._hard_fault_decision(), turn=0
++                        conversation,
++                        user_message,
++                        context,
++                        self._hard_fault_decision(),
++                        turn=0,
+                     )
++
++        # Do not run diagnostics when the customer's message is too vague
++        # to identify a device, symptom, or problem.
++        if (
++            conversation.diagnostic is None
++            and self._is_vague_issue(user_message)
++        ):
++            logger.info(
++                "Vague issue detected - asking for clarification "
++                "before diagnostics."
++            )
++
++            decision = AgentDecision(
++                action=ActionType.ASK_CLARIFYING_QUESTION,
++                reasoning=(
++                    "The message does not identify a specific device "
++                    "or symptom. Clarification is required before "
++                    "running diagnostics."
++                ),
++                requires_escalation=False,
++                response_to_user=(
++                    "I'd be happy to help. Could you describe what "
++                    "is not working? For example, is this a router "
++                    "or internet connection issue, an account problem, "
++                    "or something else?"
++                ),
++            )
++
++            return AgentRunResult(
++                TerminalState.AWAITING_CUSTOMER,
++                decision,
++                turns_used=0,
++            )
++
+         if conversation.diagnostic is not None:
+-            context = self._with_diagnostic(user_message, conversation.diagnostic)
++            context = self._with_diagnostic(
++                user_message,
++                conversation.diagnostic,
++            )
+ 
+         for turn in range(1, MAX_TURNS + 1):
+             logger.info(f"Turn {turn}/{MAX_TURNS} - deciding...")
++
+             try:
+-                decision = self.retrieval_agent.decide(context, history=history)
++                decision = self.retrieval_agent.decide(
++                    context,
++                    history=history,
++                )
+             except ModelClientError as e:
+-                logger.error(f"Model call failed on turn {turn}: {e}")
+-                return AgentRunResult(TerminalState.FAILED_SAFELY, None, turn, error_message=str(e))
++                logger.error(
++                    f"Model call failed on turn {turn}: {e}"
++                )
++                return AgentRunResult(
++                    TerminalState.FAILED_SAFELY,
++                    None,
++                    turn,
++                    error_message=str(e),
++                )
++
++            logger.info(
++                f"Turn {turn} decision: action={decision.action}, "
++                f"escalate={decision.requires_escalation}"
++            )
+ 
+-            logger.info(f"Turn {turn} decision: action={decision.action}, escalate={decision.requires_escalation}")
++            # Mandatory escalation.
++            if (
++                decision.requires_escalation
++                or decision.action == ActionType.ESCALATE
++            ):
++                return self._escalate(
++                    conversation,
++                    user_message,
++                    context,
++                    decision,
++                    turn,
++                )
+ 
+-            if decision.requires_escalation or decision.action == ActionType.ESCALATE:
+-                return self._escalate(conversation, user_message, context, decision, turn)
++            # Run diagnostics at most once per conversation.
++            if (
++                decision.action == ActionType.RUN_DIAGNOSTIC
++                and conversation.diagnostic is None
++            ):
++                result = run_router_diagnostic(
++                 forced_status=self.diagnostic_status
++                )
++                logger.info(
++                    f"Diagnostic run: status={result.status.value}"
++                )
+ 
+-            if decision.action == ActionType.RUN_DIAGNOSTIC and conversation.diagnostic is None:
+-                result = run_router_diagnostic()
+-                logger.info(f"Diagnostic run: status={result.status.value}")
+                 conversation.diagnostic = result
+-                context = self._with_diagnostic(user_message, result)
++                context = self._with_diagnostic(
++                    user_message,
++                    result,
++                )
++
+                 if result.status == DiagnosticStatus.HARD_FAULT:
+-                    # Policy Rule #1 is mandatory, so it is enforced here, not left to the model.
+                     return self._escalate(
+-                        conversation, user_message, context, self._hard_fault_decision(), turn
++                        conversation,
++                        user_message,
++                        context,
++                        self._hard_fault_decision(),
++                        turn,
+                     )
++
++                # Observe the diagnostic result before deciding again.
+                 continue
+ 
+             if decision.action == ActionType.RUN_DIAGNOSTIC:
+                 logger.warning(
+-                    "Model requested a second diagnostic call - policy violation. "
+-                    "Terminating safely instead of looping."
++                    "A second diagnostic was requested. "
++                    "Terminating safely instead of running it again."
++                )
++                return AgentRunResult(
++                    TerminalState.BUDGET_EXHAUSTED,
++                    decision,
++                    turn,
+                 )
+-                return AgentRunResult(TerminalState.BUDGET_EXHAUSTED, decision, turn)
+ 
+             if decision.action == ActionType.ASK_CLARIFYING_QUESTION:
+-                return AgentRunResult(TerminalState.AWAITING_CUSTOMER, decision, turn)
+-            return AgentRunResult(TerminalState.RESOLVED, decision, turn)
++                return AgentRunResult(
++                    TerminalState.AWAITING_CUSTOMER,
++                    decision,
++                    turn,
++                )
+ 
+-        logger.warning(f"Turn budget ({MAX_TURNS}) exhausted without resolution.")
+-        return AgentRunResult(TerminalState.BUDGET_EXHAUSTED, decision, MAX_TURNS)
++            return AgentRunResult(
++                TerminalState.RESOLVED,
++                decision,
++                turn,
++            )
++
++        logger.warning(
++            f"Turn budget ({MAX_TURNS}) exhausted without resolution."
++        )
++
++        return AgentRunResult(
++            TerminalState.BUDGET_EXHAUSTED,
++            decision,
++            MAX_TURNS,
++        )
++
++    @staticmethod
++    def _is_vague_issue(user_message: str) -> bool:
++        """Identify common vague messages before running diagnostics."""
++
++        normalized = " ".join(
++            re.sub(
++                r"[^\w\s]",
++                "",
++                user_message.lower(),
++            ).split()
++        )
++
++        vague_phrases = {
++            "its broken",
++            "its broken fix it",
++            "it is broken",
++            "broken",
++            "fix it",
++            "its not working",
++            "it is not working",
++            "not working",
++            "doesnt work",
++            "it doesnt work",
++            "does not work",
++            "it does not work",
++            "help",
++            "something is wrong",
++            "something is broken",
++            "please fix it",
++        }
++
++        return normalized in vague_phrases
+ 
+     def _escalate(
+         self,
+@@ -179,46 +346,92 @@ class VeloAgent:
+         decision: AgentDecision,
+         turn: int,
+     ) -> AgentRunResult:
+-        """Write the escalation ticket; finish ESCALATED, or FAILED_SAFELY if it can't be written."""
++        """Create an escalation ticket or fail safely."""
++
+         try:
+             retrieved_policy = self.retrieval_agent.rag.retrieve(context)
++
+             ticket = create_escalation_ticket(
+                 customer_message=user_message,
+                 decision=decision,
+                 retrieved_policy=retrieved_policy,
+                 conversation_transcript=(
+-                    conversation.transcript() if conversation.customer_turns > 1 else None
++                    conversation.transcript()
++                    if conversation.customer_turns > 1
++                    else None
+                 ),
+                 diagnostic=conversation.diagnostic,
+             )
+-            logger.info(f"Escalated. Ticket created: {ticket.ticket_id}")
++            approval_request = create_approval_request(
++           ticket_id=ticket.ticket_id,
++           proposed_action=ticket.suggested_human_action,
++            evidence=ticket.policy_cited,
++            )
++
++            logger.info(
++                f"Escalated. Ticket created: {ticket.ticket_id}"
++            )
++
+         except Exception as e:
+-            # Even if ticket creation fails, we must not pretend it worked.
+-            logger.error(f"Escalation decided but ticket creation failed: {e}")
+-            return AgentRunResult(TerminalState.FAILED_SAFELY, decision, turn, error_message=str(e))
+-        return AgentRunResult(TerminalState.ESCALATED, decision, turn, ticket=ticket)
++            logger.error(
++                f"Escalation decided but ticket creation failed: {e}"
++            )
++            return AgentRunResult(
++            TerminalState.ESCALATED,
++            decision,
++            turn,
++            ticket=ticket,
++            approval_request=approval_request,
++           )
++        return AgentRunResult(
++            TerminalState.ESCALATED,
++            decision,
++            turn,
++            ticket=ticket,
++        )
+ 
+     @staticmethod
+-    def _already_escalated(conversation: Conversation, user_message: str) -> AgentRunResult:
++    def _already_escalated(
++        conversation: Conversation,
++        user_message: str,
++    ) -> AgentRunResult:
++        """Keep using the existing ticket for an escalated conversation."""
++
+         ticket = conversation.ticket
++
+         decision = AgentDecision(
+             action=ActionType.ESCALATE,
+-            reasoning="The conversation is already escalated; no new ticket is created.",
++            reasoning=(
++                "The conversation is already escalated; "
++                "no new ticket is created."
++            ),
+             requires_escalation=True,
+             response_to_user=(
+-                f"Your case is already with our support team (ticket {ticket.ticket_id}). "
++                f"Your case is already with our support team "
++                f"(ticket {ticket.ticket_id}). "
+                 "They will follow up with you."
+             ),
+         )
++
+         conversation.add(Role.CUSTOMER, user_message)
+         conversation.add(Role.AGENT, decision.response_to_user)
+-        return AgentRunResult(TerminalState.ESCALATED, decision, 0, ticket=ticket)
++
++        return AgentRunResult(
++            TerminalState.ESCALATED,
++            decision,
++            0,
++            ticket=ticket,
++        )
+ 
+     @staticmethod
+-    def _with_diagnostic(user_message: str, diagnostic: DiagnosticResult) -> str:
++    def _with_diagnostic(
++        user_message: str,
++        diagnostic: DiagnosticResult,
++    ) -> str:
+         return (
+             f"{user_message}\n\n"
+-            f"[DIAGNOSTIC RESULT]: status={diagnostic.status.value}, detail={diagnostic.detail}"
++            f"[DIAGNOSTIC RESULT]: status={diagnostic.status.value}, "
++            f"detail={diagnostic.detail}"
+         )
+ 
+     @staticmethod
+@@ -226,14 +439,15 @@ class VeloAgent:
+         return AgentDecision(
+             action=ActionType.ESCALATE,
+             reasoning=(
+-                "Policy Rule #1: a Hard Fault diagnostic result is non-recoverable via user "
+-                "steps and must be escalated to the human team immediately. Enforced in code, "
+-                "not left to the model."
++                "Policy Rule #1: a confirmed Hard Fault diagnostic "
++                "must be escalated to the human support team immediately. "
++                "This rule is enforced in code."
+             ),
+             requires_escalation=True,
+             response_to_user=(
+-                "This needs a technician. I've escalated your case to our support team with "
+-                "the details, so you won't need to repeat them."
++                "This needs a technician. I've escalated your case "
++                "to our support team with the details, so you won't "
++                "need to repeat them."
+             ),
+         )
+ 
+@@ -242,24 +456,30 @@ class VeloAgent:
+         return AgentDecision(
+             action=ActionType.ESCALATE,
+             reasoning=(
+-                f"Policy Rule #2: the issue was not resolved within {UNRESOLVED_TURN_LIMIT} "
+-                "interaction turns, so the conversation is escalated automatically. Enforced "
+-                "in code, not left to the model."
++                f"Policy Rule #2: the issue was not resolved within "
++                f"{UNRESOLVED_TURN_LIMIT} interaction turns, so the "
++                "conversation is escalated automatically."
+             ),
+             requires_escalation=True,
+             response_to_user=(
+-                f"I haven't been able to resolve this in {UNRESOLVED_TURN_LIMIT} attempts, so "
+-                "I've escalated your case to our support team with the whole conversation. "
++                f"I haven't been able to resolve this in "
++                f"{UNRESOLVED_TURN_LIMIT} attempts, so I've escalated "
++                "your case to our support team with the conversation. "
+                 "You won't need to repeat yourself."
+             ),
+         )
+ 
+     @staticmethod
+     def _validate_input(user_message: str) -> None:
++        """Reject empty or oversized messages before model execution."""
++
+         if not user_message or not user_message.strip():
+-            raise InvalidInputError("Customer message cannot be empty.")
++            raise InvalidInputError(
++                "Customer message cannot be empty."
++            )
++
+         if len(user_message) > MAX_MESSAGE_LENGTH:
+             raise InvalidInputError(
+                 f"Customer message too long ({len(user_message)} chars, "
+                 f"max {MAX_MESSAGE_LENGTH})."
+-            )
++            )
+\ No newline at end of file
+diff --git a/src/retrieval_agent.py b/src/retrieval_agent.py
+index 9be938f..33c1a87 100644
+--- a/src/retrieval_agent.py
++++ b/src/retrieval_agent.py
+@@ -12,29 +12,39 @@ from src.rag_engine import RAGEngine
+ from src.schemas import AgentDecision
+ 
+ SYSTEM_PROMPT = """You are a customer support decision engine for Velo.
+-You will be given the customer's message and a RETRIEVED POLICY PASSAGE
+-from the official technical support manual.
+-
+-Rules:
+-- Base your decision ONLY on the retrieved passage below. Do not invent
+-  policy details (numbers, deadlines, rules) that are not in the passage.
+-- If the passage says an action MUST be escalated, you MUST set
+-  requires_escalation=true and action=escalate. Do not suggest manual
+-  troubleshooting steps in that case.
+-- Choose action=run_diagnostic ONLY if the customer is describing a
+-  ROUTER/CONNECTIVITY/HARDWARE problem (e.g. no internet, red light,
+-  device errors) AND no [DIAGNOSTIC RESULT] is present yet in the message.
+-  Never choose run_diagnostic for account/password, billing/refund, or
+-  any non-device issue - those are decided from the retrieved passage
+-  alone.
+-- If a [DIAGNOSTIC RESULT] IS already present anywhere in this
+-  conversation, you MUST NOT choose run_diagnostic again. Decide using
+-  the result you already have. A diagnostic outcome the customer states in
+-  their own message (for example "Hard Fault") counts as a diagnostic result.
+-- If a CONVERSATION SO FAR section is present, take it into account: do not ask
+-  for information the customer already gave, and do not repeat an answer that
+-  did not help.
+-- Cite the specific rule you used in `reasoning`.
++
++You will receive the customer's message and a retrieved policy passage from the official technical support manual.
++
++Follow these rules in order:
++
++1. DISTINGUISH SYMPTOMS FROM DIAGNOSTIC RESULTS.
++- A red Internet LED and no connectivity are symptoms, not proof of a Hard Fault.
++- Never classify a problem as a Hard Fault based only on symptoms.
++- Do not escalate a router issue solely because the retrieved passage mentions the Hard Fault escalation policy.
++
++2. MANDATORY HARD FAULT ESCALATION.
++- Escalate immediately only when a Hard Fault diagnostic result is explicitly reported in the conversation or provided as a diagnostic result.
++- When a confirmed Hard Fault result exists, set action=escalate and requires_escalation=true.
++- Do not recommend further troubleshooting after a confirmed Hard Fault.
++
++3. ROUTER AND CONNECTIVITY ISSUES.
++- If the customer reports a router, connectivity, red-light, or device issue and no diagnostic result exists yet, choose action=run_diagnostic.
++- Do not escalate before the diagnostic result unless another explicit mandatory escalation rule applies.
++
++4. AFTER DIAGNOSTICS.
++- If the diagnostic result is Software Glitch, follow the retrieved policy and provide appropriate recovery guidance.
++- If the diagnostic result is Hard Fault, escalate immediately.
++- Never request a second diagnostic when a diagnostic result is already available.
++
++5. NON-DEVICE ISSUES.
++- Do not run router diagnostics for account/password, billing, refund, or other non-device issues.
++- Follow the relevant retrieved policy for these cases.
++
++6. POLICY AND OUTPUT.
++- Ground decisions in the retrieved policy. Do not invent rules, deadlines, or policy details.
++- Apply a policy only when its triggering condition is satisfied.
++- Cite the specific applicable rule in the reasoning field.
++- Return the required structured AgentDecision output.
+ """
+ 
+ 

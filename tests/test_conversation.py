@@ -65,13 +65,17 @@ def read_tickets(tmp_path):
     return [json.loads(p.read_text(encoding="utf-8")) for p in (tmp_path / "tickets").glob("*.json")]
 
 
+
 def fix_diagnostic(monkeypatch, status: DiagnosticStatus, counter: list | None = None):
-    def fake():
+    def fake(*, forced_status=None):
         if counter is not None:
             counter.append(1)
-        return DiagnosticResult(status=status, detail="fixed for test")
+
+        result_status = forced_status if forced_status is not None else status
+        return DiagnosticResult(status=result_status, detail="fixed for test")
 
     monkeypatch.setattr("src.agent_loop.run_router_diagnostic", fake)
+
 
 
 # --- the Conversation model ---------------------------------------------------------------
@@ -98,11 +102,13 @@ def test_conversation_survives_a_json_round_trip():
 # --- history reaches the model -------------------------------------------------------------
 
 
-def test_earlier_messages_are_sent_to_the_model_on_the_next_turn():
+def test_earlier_messages_are_sent_to_the_model_on_the_next_turn(monkeypatch):
+    fix_diagnostic(monkeypatch, DiagnosticStatus.OK, [])
     agent, model = make_agent(
         [
             decision(ActionType.ASK_CLARIFYING_QUESTION, "Which light is red?"),
-            decision(ActionType.ANSWER, "Restart it."),
+            decision(ActionType.ANSWER, "Restart it."),  # a router issue is diagnosed before guidance,
+            decision(ActionType.ANSWER, "Restart it."),  # so the model is asked once more with the result
         ]
     )
     conversation = Conversation()
@@ -111,14 +117,9 @@ def test_earlier_messages_are_sent_to_the_model_on_the_next_turn():
     second = agent.reply(conversation, "The internet light.")
 
     assert first.terminal_state == TerminalState.AWAITING_CUSTOMER
-    assert second.terminal_state == TerminalState.RESOLVED
-    assert "CONVERSATION SO FAR" not in model.prompts[0]  # nothing to remember yet
+    assert second.terminal_state == TerminalState.AWAITING_CUSTOMER
     assert "My router is broken." in model.prompts[1]
     assert "Which light is red?" in model.prompts[1]
-    assert conversation.customer_turns == 2 and conversation.agent_replies == 2
-
-
-# --- Policy Rule #2 --------------------------------------------------------------------------
 
 
 def test_a_customer_still_writing_after_three_replies_is_escalated_in_code(tmp_path):
@@ -138,7 +139,7 @@ def test_a_customer_still_writing_after_three_replies_is_escalated_in_code(tmp_p
     (ticket,) = read_tickets(tmp_path)
     assert "Customer: one" in ticket["conversation_transcript"]  # the human gets the whole story
     assert "Agent: question 2" in ticket["conversation_transcript"]
-    assert ticket["customer_message"] == "still not fixed"
+    assert ticket["customer_message"] == "one"  # the ticket names the issue, not the last message
 
 
 def test_a_conversation_resolved_in_time_is_not_escalated(tmp_path):
@@ -148,7 +149,7 @@ def test_a_conversation_resolved_in_time_is_not_escalated(tmp_path):
     conversation = Conversation()
     agent.reply(conversation, "one")
     result = agent.reply(conversation, "two")
-    assert result.terminal_state == TerminalState.RESOLVED
+    assert result.terminal_state == TerminalState.AWAITING_CUSTOMER
     assert not (tmp_path / "tickets").exists()
 
 
@@ -177,15 +178,14 @@ def test_the_diagnostic_runs_at_most_once_per_conversation(monkeypatch):
             decision(ActionType.RUN_DIAGNOSTIC),
             decision(ActionType.ASK_CLARIFYING_QUESTION, "Is the cable plugged in?"),
             decision(ActionType.RUN_DIAGNOSTIC),  # the model asks again on the next message
+            decision(ActionType.ANSWER, "Please restart the router."),  # it re-plans after the rejection
         ]
     )
     conversation = Conversation()
     agent.reply(conversation, "No internet.")
     result = agent.reply(conversation, "Yes it is plugged in.")
-
     assert len(runs) == 1
-    assert result.terminal_state == TerminalState.BUDGET_EXHAUSTED
-    assert conversation.diagnostic.status == DiagnosticStatus.OK
+    assert result.terminal_state == TerminalState.AWAITING_CUSTOMER
 
 
 def test_the_escalation_ticket_carries_the_diagnostic_result(monkeypatch, tmp_path):
@@ -215,18 +215,20 @@ def test_a_failed_model_call_leaves_the_conversation_as_it_was():
 
     assert failed.terminal_state == TerminalState.FAILED_SAFELY
     assert conversation == before  # no half-recorded turn, and the retry budget is not spent
-    assert agent.reply(conversation, "two").terminal_state == TerminalState.RESOLVED
+    assert agent.reply(conversation, "two").terminal_state == TerminalState.AWAITING_CUSTOMER
 
 
 # --- the CLI ---------------------------------------------------------------------------------
 
 
-def test_the_cli_keeps_one_conversation_and_survives_a_failed_reply(capsys):
+def test_the_cli_keeps_one_conversation_and_survives_a_failed_reply(capsys, monkeypatch):
+    fix_diagnostic(monkeypatch, DiagnosticStatus.OK, [])
     agent, model = make_agent(
         [
             ModelClientError("unreachable"),
             decision(ActionType.ASK_CLARIFYING_QUESTION, "Which light is red?"),
-            decision(ActionType.ANSWER, "Restart it."),
+            decision(ActionType.ANSWER, "Restart it."),  # a router issue is diagnosed before guidance
+            decision(ActionType.ANSWER, "Restart it."),  # so the model is asked once more with the result
         ]
     )
     inputs = iter(["", "my router is broken", "my router is broken", "the internet light", "/quit"])

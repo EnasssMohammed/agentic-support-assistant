@@ -16,3 +16,14 @@ chroma_langchain/
 tickets/
 logs/
 
+
+approval_requests/
+tickets/
+*.bak
+logs/
+chroma_langchain/
+reports/eval_v2_dry-run*
+approval_requests/
+tickets/
+*.bak
+logs/

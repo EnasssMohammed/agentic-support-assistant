@@ -1,12 +1,9 @@
 """
-Stage 4: Diagnostic tools.
+Diagnostic tools.
 
-A real support agent can't just trust what the customer describes - it runs
-a diagnostic and acts on the actual result. This is a MOCK diagnostic (no
-real router access), but it's wired the same way a real one would be: a
-narrow, single-purpose function with a typed result, not a general-purpose
-command runner. That narrowness is itself a safety control (see
-docs/00-problem.md's PEAS: actuators are limited to specific, safe actions).
+A real support agent can't just trust what the customer describes: it runs a diagnostic
+and acts on the actual result. This is a MOCK, read-only diagnostic wired like a real one:
+a narrow, single-purpose function with a typed result, not a general command runner.
 """
 import random
 import re
@@ -32,36 +29,52 @@ _REPORTED_STATUS_PATTERNS = (
     (re.compile(r"software[\s_-]?glitch", re.IGNORECASE), DiagnosticStatus.SOFTWARE_GLITCH),
 )
 
+# "it's not a hard fault" must not count as a report of a hard fault.
+_NEGATION_BEFORE = re.compile(
+    r"\b(?:not|no|isn't|wasn't|never|without|ruled out)\b(?:\s+\w+){0,2}\s*$", re.IGNORECASE
+)
+
+_DETAILS = {
+    DiagnosticStatus.OK: "No issues detected. Connection is stable.",
+    DiagnosticStatus.SOFTWARE_GLITCH: "Recoverable fault detected (cache/firmware level).",
+    DiagnosticStatus.HARD_FAULT: "Critical hardware failure detected (network card/motherboard).",
+}
+
 
 def extract_reported_status(message: str) -> DiagnosticStatus | None:
     """Return the diagnostic status the customer states in their own message, if any.
 
-    A customer who says "diagnostics came back as a Hard Fault" has already given us a
-    diagnostic result; running the tool again to confirm it would be pointless.
+    This is a customer CLAIM, not a measurement. Callers must not treat it as tool output.
     """
     for pattern, status in _REPORTED_STATUS_PATTERNS:
-        if pattern.search(message):
-            return status
+        for match in pattern.finditer(message):
+            if not _NEGATION_BEFORE.search(message[: match.start()]):
+                return status
     return None
 
 
-def run_router_diagnostic(device_id: str = "mock-router-01") -> DiagnosticResult:
+def run_router_diagnostic(
+    device_id: str = "mock-router-01",
+    forced_status: DiagnosticStatus | None = None,
+    rng: random.Random | None = None,
+) -> DiagnosticResult:
     """
     MOCK tool: simulates a read-only router health check.
-    In production this would call the actual device API. For this project,
-    it returns a weighted-random result so we can test every branch of the
-    agent's decision logic (OK / recoverable / must-escalate).
+
+    forced_status gives tests a deterministic outcome. Pass a seeded ``random.Random`` as
+    ``rng`` to make evaluation runs reproducible; otherwise the outcome is weighted-random.
     """
-    outcome = random.choices(
-        population=[DiagnosticStatus.OK, DiagnosticStatus.SOFTWARE_GLITCH, DiagnosticStatus.HARD_FAULT],
-        weights=[0.4, 0.4, 0.2],
-        k=1,
-    )[0]
+    if forced_status is not None:
+        outcome = forced_status
+    else:
+        outcome = (rng or random).choices(
+            population=[
+                DiagnosticStatus.OK,
+                DiagnosticStatus.SOFTWARE_GLITCH,
+                DiagnosticStatus.HARD_FAULT,
+            ],
+            weights=[0.4, 0.4, 0.2],
+            k=1,
+        )[0]
 
-    details = {
-        DiagnosticStatus.OK: "No issues detected. Connection is stable.",
-        DiagnosticStatus.SOFTWARE_GLITCH: "Recoverable fault detected (cache/firmware level).",
-        DiagnosticStatus.HARD_FAULT: "Critical hardware failure detected (network card/motherboard).",
-    }
-
-    return DiagnosticResult(status=outcome, detail=details[outcome])
+    return DiagnosticResult(status=outcome, detail=_DETAILS[outcome])

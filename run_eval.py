@@ -1,4 +1,4 @@
-"""
+﻿"""
 Stage 8: Resolution-quality evaluation.
 
 Runs the FULL agent (retrieval + diagnostic tool + escalation) against the frozen eval set
@@ -21,6 +21,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from src.agent_loop import AgentRunResult, TerminalState, VeloAgent
+from src.conversation import Conversation, Role
+from src.diagnostics import DiagnosticStatus
 from src.model_client import ModelClient, get_model_client
 from src.rag_engine import RAGEngine, resolve_provider
 
@@ -50,44 +52,168 @@ def escalation_matches(expected_escalation: bool, state: TerminalState) -> bool 
         return None
     return (state == TerminalState.ESCALATED) == expected_escalation
 
+def action_matches(case: dict, result: AgentRunResult) -> bool | None:
+    """Heuristic check of whether the expected action appears in the result.
+
+    Returns None when the run failed safely or when the action cannot
+    be evaluated reliably from the available result.
+    """
+    if result.terminal_state == TerminalState.FAILED_SAFELY:
+        return None
+
+    action = case["expected_action"]
+    state = result.terminal_state
+
+    if result.final_decision is None:
+        return None
+
+    text = (
+        result.final_decision.reasoning + " "
+        + result.final_decision.response_to_user
+    ).lower()
+
+    if action == "escalate_immediately":
+        return state == TerminalState.ESCALATED and "hard fault" in text
+
+    if action == "escalate_after_retry_limit":
+        return (
+            state == TerminalState.ESCALATED
+            and any(word in text for word in ("retry", "attempt", "3 interaction"))
+        )
+
+    if action == "guide_restart":
+        # A Hard Fault should be escalated, not treated as routine troubleshooting.
+        if state == TerminalState.ESCALATED and "hard fault" in text:
+            return None
+        return bool(re.search(r"\b(restart|reboot)\b", text))
+
+    if action == "deny_refund_digital_license":
+        return (
+            "digital license" in text
+            and any(
+                phrase in text
+                for phrase in ("non-refundable", "cannot be refunded",
+                               "cannot issue a refund", "refund cannot")
+            )
+        )
+
+    if action == "trigger_password_reset":
+        return (
+            "password reset" in text
+            and any(word in text for word in ("link", "trigger", "reset flow"))
+        )
+
+
+
+    if action == "approve_return_within_window":
+        approval_phrases = (
+            "return is approved",
+            "approved for return",
+            "eligible for return",
+            "eligible for a full refund",
+            "you can return",
+            "can proceed with a return",
+            "return is allowed",
+        )
+        denial_phrases = (
+            "not eligible for return",
+            "not eligible for a refund",
+            "cannot return",
+            "cannot be returned",
+            "refund is denied",
+            "refund cannot be issued",
+        )
+
+        response = result.final_decision.response_to_user.lower()
+
+        # Evaluate the customer-facing answer, not reasoning alone.
+        if any(phrase in response for phrase in denial_phrases):
+            return False
+
+        return any(phrase in response for phrase in approval_phrases)
+
+
+
+    if action == "ask_clarifying_question":
+        return (
+            state == TerminalState.AWAITING_CUSTOMER
+            and any(
+                phrase in text
+                for phrase in (
+                    "could you describe",
+                    "please describe",
+                    "can you clarify",
+                    "could you clarify",
+                    "what is not working",
+                )
+            )
+        )
+
+    # Unknown action labels are not scored.
+    return None
+
 
 def render_summary(runs: list[CaseRun]) -> str:
     rows = []
     scored = matched = failed = 0
+    action_scored = action_matched = action_unscored = 0
+
     for run in runs:
         state = run.result.terminal_state
-        match = escalation_matches(run.case["requires_escalation"], state)
+
+        # Existing escalation metric
+        match = escalation_matches(
+            run.case["requires_escalation"], state
+        )
         if match is None:
             failed += 1
-            mark = "n/a (failed safely)"
+            escalation_mark = "n/a (failed safely)"
         else:
             scored += 1
-            matched += match
-            mark = "yes" if match else "NO"
+            matched += int(match)
+            escalation_mark = "yes" if match else "NO"
+
+        # New expected-action metric
+        action_match = action_matches(run.case, run.result)
+        if action_match is None:
+            action_unscored += 1
+            action_mark = "n/a"
+        else:
+            action_scored += 1
+            action_matched += int(action_match)
+            action_mark = "yes" if action_match else "NO"
+
         rows.append(
-            f"| {run.case['id']} | {run.case['requires_escalation']} | {state.value} "
-            f"| {mark} | {run.result.turns_used} | {run.elapsed:.1f} |"
+            f"| {run.case['id']} | "
+            f"{run.case['requires_escalation']} | "
+            f"{state.value} | {escalation_mark} | "
+            f"{run.case['expected_action']} | {action_mark} | "
+            f"{run.result.turns_used} | {run.elapsed:.1f} |"
         )
 
     median = statistics.median(r.elapsed for r in runs) if runs else 0.0
-    return "\n".join(
-        [
-            "## Summary",
-            "",
-            "| Case | Escalation expected | Terminal state | Match | Turns | Time (s) |",
-            "|---|---|---|---|---|---|",
-            *rows,
-            "",
-            f"**Escalation match: {matched}/{scored} scored** ({failed} failed safely, not scored). "
-            f"Median time per case: {median:.1f}s.",
-            "",
-            "This only checks whether the escalate / don't-escalate decision was right. It does "
-            "not judge the wording or content of the answer, so read each case below. n1 and a1 "
-            "can legitimately go either way: the mock diagnostic is random (about 20% Hard "
-            "Fault), and a Hard Fault must be escalated.",
-            "",
-        ]
-    )
+
+    return "\n".join([
+        "## Summary",
+        "",
+        "| Case | Escalation expected | Terminal state | "
+        "Escalation match | Expected action | Action match | "
+        "Turns | Time (s) |",
+        "|---|---|---|---|---|---|---|---|",
+        *rows,
+        "",
+        f"**Escalation match: {matched}/{scored} scored** "
+        f"({failed} failed safely, not scored).",
+        f"**Expected-action match: {action_matched}/{action_scored} scored** "
+        f"({action_unscored} not scored).",
+        f"Median time per case: {median:.1f}s.",
+        "",
+        "Expected-action matching uses keyword heuristics, not a full "
+        "semantic evaluation. Review each case below, especially cases "
+        "marked NO or n/a. The mock diagnostic is randomized, so a "
+        "Hard Fault can legitimately cause escalation in some cases.",
+        "",
+    ])
 
 
 def render_case(run: CaseRun) -> str:
@@ -133,7 +259,7 @@ def main(
     provider = resolve_provider(provider)
     model = model if model is not None else get_model_client()
     rag = rag if rag is not None else RAGEngine(provider=provider)
-    agent = VeloAgent(model=model, rag=rag)
+
 
     path = report_path(provider, model.model_name, reports_dir)
     reports_dir.mkdir(parents=True, exist_ok=True)
@@ -148,13 +274,51 @@ def main(
 
     runs: list[CaseRun] = []
     for i, case in enumerate(cases, start=1):
+        diagnostic_status = case.get("diagnostic_status")
+        forced_status = (
+            DiagnosticStatus[diagnostic_status.upper()]
+            if diagnostic_status
+            else None
+        )
+
+        agent = VeloAgent(
+            model=model,
+            rag=rag,
+            diagnostic_status=forced_status,
+        )
+
         print(f"[{i}/{len(cases)}] Running case {case['id']}...")
         start = time.time()
-        result = agent.run(case["question"])
+
+        prior_agent_replies = case.get("prior_agent_replies", 0)
+
+        if prior_agent_replies:
+            conversation = Conversation()
+
+            for attempt in range(prior_agent_replies):
+                conversation.add(
+                    Role.CUSTOMER,
+                    f"Previous attempt {attempt + 1}: "
+                    "The issue is still unresolved.",
+                )
+                conversation.add(
+                    Role.AGENT,
+                    f"Previous response {attempt + 1}: "
+                    "Troubleshooting was attempted, but the issue remains.",
+                )
+
+            result = agent.reply(conversation, case["question"])
+        else:
+            result = agent.run(case["question"])
+
         elapsed = time.time() - start
-        print(f"  -> {result.terminal_state.value} in {elapsed:.1f}s ({result.turns_used} turn(s))")
+        print(
+            f"  -> {result.terminal_state.value} "
+            f"in {elapsed:.1f}s ({result.turns_used} turn(s))"
+        )
         runs.append(CaseRun(case, result, elapsed))
         write_report(path, header, runs)
+
 
     print(f"\nDone. Report written to {path}")
     return path
