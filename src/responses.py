@@ -61,9 +61,14 @@ def request_missing_details(missing: tuple[str, ...]) -> str:
 def escalation_notice(
     kind: EscalationKind,
     ticket_id: str | None = None,
-    model_text: str | None = None,
     attempts: int = 3,
 ) -> str:
+    """What the customer is told when a case is handed to a human.
+
+    Always deterministic. The model's own wording is deliberately not used: what the customer is promised
+    must match what actually happened (a ticket exists), and free text from the model can promise more,
+    or format it as invented steps. The model's reasoning travels in the ticket for the human instead.
+    """
     if kind is EscalationKind.HARD_FAULT:
         body = (
             "أظهر الفحص عطلاً في العتاد لا يمكن إصلاحه عن بُعد، "
@@ -80,7 +85,7 @@ def escalation_notice(
             "مع سجل المحادثة وما جرّبناه."
         )
     else:
-        body = (model_text or "").strip() or "هذه الحالة تحتاج إلى فريق الدعم، وقد حوّلتها إليه."
+        body = "هذه الحالة تحتاج إلى فريق الدعم، وقد حوّلتها إليه."
 
     if ticket_id is None:
         return body

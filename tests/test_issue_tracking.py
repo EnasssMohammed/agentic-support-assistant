@@ -277,3 +277,26 @@ def test_an_account_issue_can_still_be_escalated_by_the_model(sandbox):
     agent, _, _ = make([dec(ActionType.ESCALATE, escalate=True)])
     result = agent.reply(Conversation(), LOGIN)
     assert result.terminal_state == TerminalState.ESCALATED and sandbox == []
+
+
+def test_an_unidentified_issue_cannot_trigger_the_router_diagnostic(sandbox):
+    """Regression (n01): 'how do I configure the quantum sync module?' ran the router tool and got router steps."""
+    agent, model, _ = make([dec(ActionType.RUN_DIAGNOSTIC), dec(ActionType.ASK_CLARIFYING_QUESTION, "ما اسم الجهاز؟")])
+    conv = Conversation()
+    result = agent.reply(conv, "How do I configure the quantum sync module?")
+    assert conv.topic is None
+    assert sandbox == []                                 # the diagnostic never ran
+    assert conv.diagnostic is None
+    assert result.terminal_state == TerminalState.AWAITING_CUSTOMER
+    assert "Router diagnostics do not apply to this unidentified issue" in model.prompts[-1]
+
+
+def test_a_model_escalation_tells_the_customer_only_what_really_happened(sandbox):
+    """Regression (n02): the model's free text, numbered list included, used to reach the customer."""
+    text = "سيتم إحالة الحالة. 1. سيتم إرسال التفاصيل 2. سنتواصل معك خلال ساعة"
+    agent, _, _ = make([dec(ActionType.ESCALATE, text, escalate=True)])
+    result = agent.reply(Conversation(), "كيف أضبط وحدة المزامنة الكمومية؟")
+    assert result.terminal_state == TerminalState.ESCALATED and result.ticket is not None
+    assert "1." not in result.reply_text and "ساعة" not in result.reply_text
+    assert result.ticket.ticket_id in result.reply_text
+    assert "فريق الدعم" in result.reply_text

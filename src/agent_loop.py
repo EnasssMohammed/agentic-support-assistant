@@ -57,9 +57,9 @@ def _neutralize_markers(text: str) -> str:
 
 
 _WRONG_TOPIC_DIAGNOSTIC_FEEDBACK = (
-    "[POLICY FEEDBACK]: Router diagnostics do not apply to this {topic} issue. Do not "
-    "request a diagnostic. Answer from the {topic} policy, ask one clarifying question, "
-    "or escalate."
+    "[POLICY FEEDBACK]: Router diagnostics do not apply to this {topic} issue; the tool is "
+    "only for router or connectivity problems. Do not request a diagnostic. Answer from the "
+    "policy, ask one clarifying question, or escalate."
 )
 
 
@@ -236,10 +236,12 @@ class VeloAgent:
                 decision = decision.model_copy(update={"action": ActionType.RUN_DIAGNOSTIC})
 
             if decision.action == ActionType.RUN_DIAGNOSTIC:
-                if topic in ("account", "billing"):
-                    # The router tool has nothing to say about this issue; reject and re-plan.
-                    logger.warning("Diagnostic rejected for a %s issue; replanning.", topic)
-                    context = f"{context}\n\n{_WRONG_TOPIC_DIAGNOSTIC_FEEDBACK.format(topic=topic)}"
+                if topic != "router":
+                    # Allow-list, not deny-list: the tool is only valid for a router issue. An issue with no
+                    # recognised topic must not run it either, or its random result becomes "evidence".
+                    logger.warning("Diagnostic rejected for a %s issue; replanning.", topic or "unidentified")
+                    feedback = _WRONG_TOPIC_DIAGNOSTIC_FEEDBACK.format(topic=topic or "unidentified")
+                    context = f"{context}\n\n{feedback}"
                     continue
                 if conversation.diagnostic is not None:
                     # Policy rejects the plan; feed the reason back and replan.
@@ -327,9 +329,7 @@ class VeloAgent:
         decision: AgentDecision | None = None,
     ) -> AgentRunResult:
         decision = decision or self._policy_decision(kind)
-        customer_reply = responses.escalation_notice(
-            kind, model_text=decision.response_to_user, attempts=UNRESOLVED_TURN_LIMIT
-        )
+        customer_reply = responses.escalation_notice(kind, attempts=UNRESOLVED_TURN_LIMIT)
         try:
             retrieved_policy = self.retrieval_agent.policy_for(context, conversation.topic)
         except Exception:
@@ -367,10 +367,7 @@ class VeloAgent:
         notice = decision.model_copy(
             update={
                 "response_to_user": responses.escalation_notice(
-                    kind,
-                    ticket.ticket_id,
-                    model_text=decision.response_to_user,
-                    attempts=UNRESOLVED_TURN_LIMIT,
+                    kind, ticket.ticket_id, attempts=UNRESOLVED_TURN_LIMIT
                 )
             }
         )
