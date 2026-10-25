@@ -4,8 +4,7 @@ Regression tests for: "I cannot log in" -> "still not working" -> router restart
 """
 import pytest
 
-from src import approval, escalation
-from src import agent_loop as loop
+from src import agent_loop, approval, escalation
 from src.agent_loop import TerminalState, VeloAgent
 from src.conversation import Conversation
 from src.diagnostics import DiagnosticResult, DiagnosticStatus
@@ -55,7 +54,7 @@ def sandbox(monkeypatch, tmp_path):
     monkeypatch.setattr(approval, "APPROVALS_DIR", tmp_path / "approvals")
     diagnostics = []
     monkeypatch.setattr(
-        loop, "run_router_diagnostic",
+        agent_loop, "run_router_diagnostic",
         lambda forced_status=None, **kw: diagnostics.append(1)
         or DiagnosticResult(status=forced_status or DiagnosticStatus.SOFTWARE_GLITCH, detail="d"),
     )
