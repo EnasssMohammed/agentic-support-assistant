@@ -36,6 +36,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Welcome message in the customer chat: Velo introduces itself as an AI assistant and says what it can do.
 
 ### Changed
+- The customer notice for a model-initiated escalation is deterministic; the model's wording no longer reaches the customer.
 - Prompt rule: requests for information are plain sentences, never numbered (numbering is for policy steps).
 - Policy Rule 3 is enforced in code: a router issue is diagnosed before any guidance, even when the model answers
   directly or the customer claims a diagnostic result. A real evaluation showed the prompt alone was followed only
@@ -61,6 +62,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Customer text cannot forge the `[DIAGNOSTIC RESULT]` and `[POLICY FEEDBACK]` markers.
 
 ### Fixed
+- The router diagnostic is an allow-list: it only runs for a router issue. An issue with no recognised topic could run it
+  and receive router steps for an unrelated product (eval case `n01`).
 - The injected model failure (`f02`) crashed systems that call `generate()`; it now supports both model calls.
 - The model could escalate a router issue to a human before any diagnostic had run (a red LED is a symptom, not a
   Hard Fault). The diagnostic now runs first; a confirmed Hard Fault still escalates immediately.
