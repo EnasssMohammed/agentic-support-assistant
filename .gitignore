@@ -23,3 +23,7 @@ tickets/
 logs/
 chroma_langchain/
 reports/eval_v2_dry-run*
+approval_requests/
+tickets/
+*.bak
+logs/
