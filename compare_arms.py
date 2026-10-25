@@ -31,6 +31,11 @@ def check_comparable(reports: dict[str, dict]) -> None:
         values = {str(m.get(field)) for m in metas.values()}
         if len(values) > 1:
             raise ComparisonError(f"Arms differ in '{field}': {sorted(values)}. Re-run them under the same setup.")
+    versions = {m["prompt_version"] for m in metas.values() if "prompt_version" in m}
+    if len(versions) > 1:
+        raise ComparisonError(
+            f"Arms were run with different prompt versions: {sorted(versions)}. Re-run the older arm."
+        )
     if any(m.get("dry_run") for m in metas.values()):
         raise ComparisonError("A dry run verifies the harness only; it cannot be compared.")
     if any(r["decision"] == "INVALID RUN" for r in reports.values()):

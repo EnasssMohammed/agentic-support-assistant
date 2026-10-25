@@ -25,6 +25,7 @@ from src.intents import (
     customer_confirms_resolution,
     customer_reports_unresolved,
     extract_topic_evidence,
+    is_instruction_override,
     is_vague_issue,
 )
 from src.logging_config import get_logger
@@ -119,6 +120,12 @@ class VeloAgent:
 
         snapshot = (conversation.topic, conversation.issue, conversation.issue_start)
         conversation.add(Role.CUSTOMER, user_message)
+
+        if is_instruction_override(user_message):
+            # Deterministic: never reaches the model, never opens or changes an issue, never creates a ticket.
+            logger.warning("Instruction-override attempt refused.")
+            return self._finish(conversation, self._refuse_override(), snapshot)
+
         self._track_issue(conversation, user_message)
 
         # Everything below is scoped to the CURRENT issue: its history, its attempts, its topic.
@@ -268,6 +275,16 @@ class VeloAgent:
         )
 
     # ----------------------------------------------------------------- helpers
+
+    @staticmethod
+    def _refuse_override() -> AgentRunResult:
+        decision = AgentDecision(
+            action=ActionType.ANSWER,
+            reasoning="Instruction-override or prompt-extraction attempt; refused by a code-level guard.",
+            requires_escalation=False,
+            response_to_user=responses.cannot_share_instructions(),
+        )
+        return AgentRunResult(TerminalState.AWAITING_CUSTOMER, decision, turns_used=0)
 
     @staticmethod
     def _resolved() -> AgentRunResult:

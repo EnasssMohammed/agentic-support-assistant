@@ -151,6 +151,31 @@ def customer_reports_unresolved(message: str) -> bool:
     return bool(_NOT_FIXED_RE.search(normalize(message)))
 
 
+# Instruction-override / prompt-extraction attempts. Deliberately narrow: each pattern needs both an
+# override or extraction verb AND a noun that names the assistant's own instructions, so ordinary support
+# text ("show me the instructions to reset my password", "اعرض إعدادات النظام") never matches.
+_OVERRIDE_RE = _compile(
+    r"\b(?:ignore|disregard|forget|override|bypass)\b[^.!?\n]{0,30}?"
+    r"\b(?:previous|prior|earlier|above|all|your)\b[^.!?\n]{0,30}?"
+    r"\b(?:instructions?|rules?|prompt|guidelines?)\b",
+    r"\b(?:system|developer|hidden|secret)\s+(?:prompt|instructions?)\b",
+    r"\b(?:reveal|print|show|repeat|output|display|leak)\b[^.!?\n]{0,30}?\b(?:initial|original)\s+prompt\b",
+    r"تجاهل(?:ي)?\s+(?:كل\s+|جميع\s+)?(?:التعليمات|الأوامر|الاوامر|القواعد)",
+    r"(?:اطبع|اعرض|أظهر|اظهر|كرر|اكشف)[^.!?\n]{0,25}(?:التعليمات|البرومبت|موجه النظام|رسالة النظام)",
+    r"(?:تعليمات|موجه|رسالة)\s+النظام",
+)
+
+
+def is_instruction_override(message: str) -> bool:
+    """True for an attempt to override the assistant's rules or to extract its prompt.
+
+    Defence in depth next to the prompt's SECURITY BOUNDARY: a match is answered by a fixed refusal,
+    never reaches the model and can never open a ticket (a flood of such messages must not become
+    work for human agents). It is not a complete injection filter; the adversarial suite measures that.
+    """
+    return bool(_OVERRIDE_RE.search(normalize(message)))
+
+
 def is_vague_issue(message: str) -> bool:
     """True when the message gives too little detail to act on."""
     cleaned = " ".join(re.sub(r"[^\w\s]", "", message.lower()).split())

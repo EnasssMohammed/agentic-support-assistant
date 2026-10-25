@@ -34,6 +34,7 @@ from src.eval_metrics import (
     release_decision,
     summarize,
 )
+from src.retrieval_agent import PROMPT_VERSION
 
 CASES_FILE = Path("evals/cases_v2.jsonl")
 REPORTS_DIR = Path("reports")
@@ -294,7 +295,7 @@ def main(argv: list[str] | None = None) -> int:
 
     meta = {"provider": provider, "model": model_name, "date": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "cases_file": str(args.cases), "total_cases": len(all_cases), "runs": args.runs,
-            "dry_run": args.dry_run, "arm": args.arm}
+            "dry_run": args.dry_run, "arm": args.arm, "prompt_version": PROMPT_VERSION}
     stem = report_stem(provider, model_name, args.arm)
     REPORTS_DIR.mkdir(exist_ok=True)
 
