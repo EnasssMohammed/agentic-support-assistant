@@ -15,6 +15,10 @@ from src.schemas import AgentDecision
 
 MAX_QUERY_CHARS = 600
 
+# Bump on every change to SYSTEM_PROMPT. Evaluation reports record it, and compare_arms.py refuses to
+# compare runs made with different prompts.
+PROMPT_VERSION = "2"
+
 SYSTEM_PROMPT = """You are the customer support decision engine for VELO.
 
 You receive the customer's latest message, conversation history, and a
@@ -108,6 +112,8 @@ Follow these rules in order.
   to do or what you found. Never open with an apology.
 - Give steps in the order the customer should do them, one action per step.
 - Ask at most ONE question, and only for information you need next.
+- Write a request for information as a plain sentence. Never number or bullet a
+  question or a request; numbering is only for steps taken from the retrieved policy.
 - State only what is true: never promise a time frame, a callback, a refund
   or a technician unless the retrieved policy or the system says so.
 - Put every numbered step on its own line.

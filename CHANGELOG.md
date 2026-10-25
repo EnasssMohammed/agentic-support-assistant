@@ -6,6 +6,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- `is_instruction_override`: deterministic guard that refuses instruction-override and prompt-extraction attempts
+  without calling the model or creating a ticket.
+- `PROMPT_VERSION`, recorded in evaluation reports; `compare_arms.py` refuses to compare different versions.
 - Comparison arms for evaluation v2 (`src/arms.py`, `run_eval_v2.py --arm baseline|rag|agent`) and `compare_arms.py`: the same 38
   frozen cases through a single-call baseline, a retrieval-only arm and the full agent, with a side-by-side table.
 - Conversation state (`src/conversation.py`, Pydantic): `VeloAgent.reply(conversation, message)` keeps the messages, the
@@ -33,6 +36,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Welcome message in the customer chat: Velo introduces itself as an AI assistant and says what it can do.
 
 ### Changed
+- Prompt rule: requests for information are plain sentences, never numbered (numbering is for policy steps).
 - Policy Rule 3 is enforced in code: a router issue is diagnosed before any guidance, even when the model answers
   directly or the customer claims a diagnostic result. A real evaluation showed the prompt alone was followed only
   some of the time.

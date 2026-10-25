@@ -31,6 +31,11 @@ def check_comparable(reports: dict[str, dict]) -> None:
         values = {str(m.get(field)) for m in metas.values()}
         if len(values) > 1:
             raise ComparisonError(f"Arms differ in '{field}': {sorted(values)}. Re-run them under the same setup.")
+    versions = {m["prompt_version"] for m in metas.values() if "prompt_version" in m}
+    if len(versions) > 1:
+        raise ComparisonError(
+            f"Arms were run with different prompt versions: {sorted(versions)}. Re-run the older arm."
+        )
     if any(m.get("dry_run") for m in metas.values()):
         raise ComparisonError("A dry run verifies the harness only; it cannot be compared.")
     if any(r["decision"] == "INVALID RUN" for r in reports.values()):
@@ -66,7 +71,7 @@ def render(reports: dict[str, dict]) -> str:
         row("Latency p95 per reply", lambda r: f"{r['summary']['latency_p95']:.1f}s"),
         row("Blocking gates passed",
             lambda r: f"{sum(g['ok'] for g in r['gates'] if g['blocking'])}/{sum(g['blocking'] for g in r['gates'])}"),
-        row("Decision", lambda r: r["decision"]),
+        row("Decision", lambda r: r["decision"] if r["meta"].get("arm", "agent") == "agent" else "n/a (ablation)"),
         "",
         f"## pass^{k} by family",
         "",
