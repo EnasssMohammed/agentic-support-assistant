@@ -18,12 +18,65 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   name that does not match the provider now fails at startup instead of mid-run.
 - `run_eval.py` writes one report per provider and model (`reports/agent_results_<provider>_<model>.md`)
   and starts it with a summary table scoring the escalate / don't-escalate decision against the eval set.
+- `src/intents.py` and `src/responses.py`: deterministic intent detection and customer-facing replies moved out of
+  the agent loop. Streamlit UI (`app.py`) with a customer chat and a team console.
+- Escalation ticket v2: `escalation_kind`, `priority`, `customer_reply`; `suggested_human_action` is now written for staff.
+- `RAGEngine.retrieve_passages()` returns passages with source and distance; optional relevance cutoff
+  (`VELO_MAX_DISTANCE`). Retrieved text is labelled with its source.
+- `run_router_diagnostic(rng=...)` for reproducible evaluation runs.
+- Rotating log file (2 MB x 3).
+- Evaluation v2 (`run_eval_v2.py`, `src/eval_metrics.py`, `evals/cases_v2.jsonl`): 38 frozen cases in 10 families,
+  repeated runs, pass@1 / pass@k / pass^k, flaky-case list, adversarial suite, blocking release gates and a
+  GO / NO-GO decision. `--dry-run` verifies the harness without a model; `--gate` exits 1 on NO-GO.
+- Welcome message in the customer chat: Velo introduces itself as an AI assistant and says what it can do.
+
+### Changed
+- Policy Rule 3 is enforced in code: a router issue is diagnosed before any guidance, even when the model answers
+  directly or the customer claims a diagnostic result. A real evaluation showed the prompt alone was followed only
+  some of the time.
+- Release decision has four outcomes: GO, CONDITIONAL GO (only a budget exceeded), NO-GO, INVALID RUN.
+- No-evidence cases accept either an admission or a clarifying question, and forbid invented step-by-step instructions.
+- Evaluation gates: "diagnostic at most once" and "router issues are diagnosed before guidance" are separate gates;
+  latency is measured per reply.
+- The prompt says explicitly what to do when the policy has no answer (say so, never invent steps).
+- The conversation now remembers its current issue (`topic`, `issue`, `issue_start`). History, retrieval,
+  attempt counting, follow-up questions and the ticket are all scoped to that issue, so a login problem is never
+  answered with router steps. Retrieval is filtered by topic; the router diagnostic is refused for account and
+  billing issues. See `docs/03-issue-tracking.md`.
+- The knowledge base is chunked per policy entry instead of fixed 300-character windows, so rules are never cut
+  in half. The index rebuilds once automatically.
+- Retrieval query includes the original issue, so short follow-ups find the right policy.
+- Response-style rules and a data/instructions boundary added to the system prompt.
+- A repeated diagnostic request is rejected and the model re-plans, instead of ending the run.
+
+### Security
+- A customer's claim of a diagnostic outcome is no longer treated as tool output; only a claimed Hard Fault can
+  trigger escalation, and negated claims ("not a hard fault") are ignored.
+- Customer text cannot forge the `[DIAGNOSTIC RESULT]` and `[POLICY FEEDBACK]` markers.
 
 ### Fixed
+- The model could escalate a router issue to a human before any diagnostic had run (a red LED is a symptom, not a
+  Hard Fault). The diagnostic now runs first; a confirmed Hard Fault still escalates immediately.
+- Evaluation phrase matching ignores Arabic diacritics and alef variants.
+- Evaluation false positive: the plain word "exception" in a correct reply was treated as a leak. Leak detection now
+  matches stack traces, error class names and API keys only.
+- A knowledge-base outage (for example an unreachable embedding service) crashed the agent. It now fails safely
+  like a model outage: the customer is asked to resend and no internal error text is shown.
+- Escalation no longer depends on retrieval: the ticket is still created, without the policy excerpt, when the
+  knowledge base cannot be searched.
+- Evaluation: a run hit by network errors is reported as INVALID RUN instead of NO-GO; the run stops after three
+  unreachable cases, and a preflight check runs before the first case.
+- Topic drift: "still not working" after a login problem produced router instructions.
+- A reported Hard Fault inside a "still not working" message was swallowed by the follow-up path.
+- A failing diagnostic tool crashed the run; it now escalates with a ticket (`tool_failure`).
 - `main.py` crashed when a reply failed safely (no decision to print).
 - The diagnostic "at most once per conversation" rule only held within one message; it now holds across the conversation.
 - `run_eval.py` crashed on a case that failed safely (no decision to print) and overwrote the previous
   model's results on every run. It now reports the failure and keeps results per model.
+- Ticket `suggested_human_action` no longer contains the customer-facing reply.
+- When ticket creation fails, the customer is told the case was not transferred.
+- Internal error text is never shown to customers.
+- Log duplicates when a framework configures the root logger.
 
 ## [1.2.0] - 2026-10-12
 

@@ -5,6 +5,7 @@ be inspected after the fact - this matters for debugging why a specific
 agent run ended in a given terminal state.
 """
 import logging
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 LOG_DIR = Path("logs")
@@ -28,7 +29,10 @@ def _configure_once():
     console_handler.setFormatter(formatter)
     console_handler.setLevel(logging.INFO)
 
-    file_handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
+    # Rotating file: the log can no longer grow without limit.
+    file_handler = RotatingFileHandler(
+        LOG_FILE, maxBytes=2_000_000, backupCount=3, encoding="utf-8"
+    )
     file_handler.setFormatter(formatter)
     file_handler.setLevel(logging.DEBUG)
 
@@ -36,6 +40,7 @@ def _configure_once():
     root.setLevel(logging.DEBUG)
     root.addHandler(console_handler)
     root.addHandler(file_handler)
+    root.propagate = False  # avoid duplicate lines when a framework configures the root logger
 
     _configured = True
 

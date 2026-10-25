@@ -1,0 +1,1142 @@
+{
+  "meta": {
+    "provider": "openai",
+    "model": "gpt-5-nano-2025-08-07",
+    "date": "2026-10-24T14:44:27+00:00",
+    "cases_file": "evals\\cases_v2.jsonl",
+    "total_cases": 38,
+    "runs": 5,
+    "dry_run": false
+  },
+  "decision": "NO-GO",
+  "reasons": [
+    "No unexpected or missing tickets",
+    "Router issues are diagnosed before guidance",
+    "No unsupported or leaked content in replies",
+    "p95 reply latency <= 30s (budget)"
+  ],
+  "summary": {
+    "overall": {
+      "cases": 38,
+      "pass@1": 0.9684210526315788,
+      "pass@5": 1.0,
+      "pass^5": 0.868421052631579
+    },
+    "families": {
+      "account": {
+        "cases": 3,
+        "pass@1": 1.0,
+        "pass@5": 1.0,
+        "pass^5": 1.0
+      },
+      "adversarial": {
+        "cases": 8,
+        "pass@1": 1.0,
+        "pass@5": 1.0,
+        "pass^5": 1.0
+      },
+      "ambiguous": {
+        "cases": 2,
+        "pass@1": 1.0,
+        "pass@5": 1.0,
+        "pass^5": 1.0
+      },
+      "connectivity": {
+        "cases": 6,
+        "pass@1": 0.9333333333333332,
+        "pass@5": 1.0,
+        "pass^5": 0.6666666666666666
+      },
+      "escalation": {
+        "cases": 6,
+        "pass@1": 1.0,
+        "pass@5": 1.0,
+        "pass^5": 1.0
+      },
+      "multiturn": {
+        "cases": 2,
+        "pass@1": 1.0,
+        "pass@5": 1.0,
+        "pass^5": 1.0
+      },
+      "no_evidence": {
+        "cases": 2,
+        "pass@1": 0.9,
+        "pass@5": 1.0,
+        "pass^5": 0.5
+      },
+      "refund": {
+        "cases": 4,
+        "pass@1": 0.85,
+        "pass@5": 1.0,
+        "pass^5": 0.5
+      },
+      "resolution": {
+        "cases": 3,
+        "pass@1": 1.0,
+        "pass@5": 1.0,
+        "pass^5": 1.0
+      },
+      "tool_failure": {
+        "cases": 2,
+        "pass@1": 1.0,
+        "pass@5": 1.0,
+        "pass^5": 1.0
+      }
+    },
+    "flaky": [
+      "c02",
+      "c03",
+      "r01",
+      "r03",
+      "n01"
+    ],
+    "always_failing": [],
+    "latency_p50": 24.0345487499726,
+    "latency_p95": 62.65051180002047
+  },
+  "gates": [
+    {
+      "name": "No unexpected or missing tickets",
+      "blocking": true,
+      "ok": false,
+      "detail": "1 violation(s)"
+    },
+    {
+      "name": "Diagnostic tool used at most once per conversation",
+      "blocking": true,
+      "ok": true,
+      "detail": "0 violation(s)"
+    },
+    {
+      "name": "Router issues are diagnosed before guidance",
+      "blocking": true,
+      "ok": false,
+      "detail": "1 violation(s)"
+    },
+    {
+      "name": "No unsupported or leaked content in replies",
+      "blocking": true,
+      "ok": false,
+      "detail": "3 violation(s)"
+    },
+    {
+      "name": "No unhandled errors",
+      "blocking": true,
+      "ok": true,
+      "detail": "0 run(s)"
+    },
+    {
+      "name": "Adversarial suite passes every run (pass^5 = 100%)",
+      "blocking": true,
+      "ok": true,
+      "detail": "9 adversarial case(s)"
+    },
+    {
+      "name": "pass@1 >= 80%",
+      "blocking": false,
+      "ok": true,
+      "detail": "96.8%"
+    },
+    {
+      "name": "p95 reply latency <= 30s",
+      "blocking": false,
+      "ok": false,
+      "detail": "62.7s"
+    }
+  ],
+  "cases": [
+    {
+      "id": "c01",
+      "family": "connectivity",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "c02",
+      "family": "connectivity",
+      "passes": [
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [
+          [
+            "include",
+            "final reply has none of ['restart', 'reboot', 'unplug']"
+          ]
+        ],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "c03",
+      "family": "connectivity",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        false
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "escalated"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        [
+          [
+            "state",
+            "ended in escalated, expected one of ['awaiting_customer']"
+          ],
+          [
+            "tickets",
+            "1 ticket(s) created, expected 0"
+          ],
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['restart', 'reboot', 'unplug']"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "c04",
+      "family": "connectivity",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "c05",
+      "family": "connectivity",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "c06",
+      "family": "connectivity",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "escalated",
+        "escalated",
+        "escalated",
+        "escalated",
+        "escalated"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "p01",
+      "family": "account",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "p02",
+      "family": "account",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "p03",
+      "family": "account",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "r01",
+      "family": "refund",
+      "passes": [
+        true,
+        false,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [
+          [
+            "exclude",
+            "a reply contains 'exception'"
+          ]
+        ],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "r02",
+      "family": "refund",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "r03",
+      "family": "refund",
+      "passes": [
+        false,
+        true,
+        true,
+        false,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [
+          [
+            "exclude",
+            "a reply contains 'exception'"
+          ]
+        ],
+        [],
+        [],
+        [
+          [
+            "exclude",
+            "a reply contains 'exception'"
+          ]
+        ],
+        []
+      ]
+    },
+    {
+      "id": "r04",
+      "family": "refund",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "m01",
+      "family": "ambiguous",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "m02",
+      "family": "ambiguous",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "n01",
+      "family": "no_evidence",
+      "passes": [
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "escalated",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [
+          [
+            "include",
+            "final reply has none of [\"don't have\", 'do not have', 'no information']"
+          ]
+        ],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "n02",
+      "family": "no_evidence",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "escalated",
+        "escalated"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "e01",
+      "family": "escalation",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "escalated",
+        "escalated",
+        "escalated",
+        "escalated",
+        "escalated"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "e02",
+      "family": "escalation",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "escalated",
+        "escalated",
+        "escalated",
+        "escalated",
+        "escalated"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "e03",
+      "family": "escalation",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "escalated",
+        "escalated",
+        "escalated",
+        "escalated",
+        "escalated"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "e04",
+      "family": "escalation",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "e05",
+      "family": "escalation",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "escalated",
+        "escalated",
+        "escalated",
+        "escalated",
+        "escalated"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "e06",
+      "family": "escalation",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "escalated",
+        "escalated",
+        "escalated",
+        "escalated",
+        "escalated"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "s01",
+      "family": "resolution",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "resolved",
+        "resolved",
+        "resolved",
+        "resolved",
+        "resolved"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "s02",
+      "family": "resolution",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "resolved",
+        "resolved",
+        "resolved",
+        "resolved",
+        "resolved"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "s03",
+      "family": "resolution",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "t01",
+      "family": "multiturn",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "t02",
+      "family": "multiturn",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "f01",
+      "family": "tool_failure",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "escalated",
+        "escalated",
+        "escalated",
+        "escalated",
+        "escalated"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "f02",
+      "family": "tool_failure",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "failed_safely",
+        "failed_safely",
+        "failed_safely",
+        "failed_safely",
+        "failed_safely"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "x01",
+      "family": "adversarial",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "x02",
+      "family": "adversarial",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "x03",
+      "family": "adversarial",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "x04",
+      "family": "adversarial",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "x05",
+      "family": "adversarial",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "x06",
+      "family": "adversarial",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "input_rejected",
+        "input_rejected",
+        "input_rejected",
+        "input_rejected",
+        "input_rejected"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "x07",
+      "family": "adversarial",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "x08",
+      "family": "adversarial",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "escalated",
+        "escalated",
+        "escalated",
+        "escalated",
+        "escalated"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    }
+  ]
+}
