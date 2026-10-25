@@ -73,6 +73,37 @@ ticket (`tool_failure`) and the case `f01` guards it.
   LLM judge for tone. These belong to later steps.
 - 38 cases is a starting set. Add a case for every production failure (AgentOps loop).
 
+## Comparison arms (baseline vs RAG vs agent)
+
+Curriculum reference: project guide section 32 (compare against the baseline) and chapter 11.
+
+The same 38 frozen cases, the same model and the same deterministic checks run through three systems:
+
+| Arm | What it has | Command |
+|---|---|---|
+| `baseline` | One model call. No retrieval, tools, state or policy (`src/baseline.py`) | `--arm baseline` |
+| `rag` | Retrieval + structured decision + history. No diagnostic tool, no ticket tool, no code-level policy | `--arm rag` |
+| `agent` | The full `VeloAgent` (default) | `--arm agent` |
+
+    uv run python run_eval_v2.py --runs 5 --arm baseline
+    uv run python run_eval_v2.py --runs 5 --arm rag
+    uv run python run_eval_v2.py --runs 5
+    uv run python compare_arms.py baseline=reports/eval_v2_baseline_<provider>_<model>.json \
+                                  rag=reports/eval_v2_rag_<provider>_<model>.json \
+                                  agent=reports/eval_v2_<provider>_<model>.json
+
+`compare_arms.py` refuses to compare reports that differ in model, provider, cases file, k or case count,
+and refuses dry runs and INVALID RUNs. It writes `reports/arm_comparison.md`.
+
+Reading the result: `baseline -> rag` is what grounded retrieval buys; `rag -> agent` is what tools, state and
+enforced policy buy. The ablation arms have no ticket or diagnostic tool, so they fail those gates by
+construction (they are never release candidates); judge them on the families where that is not the whole story
+(`no_evidence`, `refund`, `adversarial`). Report the cost of the agent as well: if it did not improve a family,
+say so.
+
+The `f02` injected-failure case used to crash any system that calls `generate()` instead of
+`generate_structured()`; the injected model now supports both.
+
 ## Results
 
 ### First real run: gpt-5-nano-2025-08-07, k = 3, 38 cases

@@ -6,6 +6,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Comparison arms for evaluation v2 (`src/arms.py`, `run_eval_v2.py --arm baseline|rag|agent`) and `compare_arms.py`: the same 38
+  frozen cases through a single-call baseline, a retrieval-only arm and the full agent, with a side-by-side table.
 - Conversation state (`src/conversation.py`, Pydantic): `VeloAgent.reply(conversation, message)` keeps the messages, the
   diagnostic result and the ticket across customer messages; `run(message)` is still the single-message shortcut.
 - Policy Rule #2 enforced in code: a customer still writing after 3 agent replies is escalated automatically
@@ -55,6 +57,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Customer text cannot forge the `[DIAGNOSTIC RESULT]` and `[POLICY FEEDBACK]` markers.
 
 ### Fixed
+- The injected model failure (`f02`) crashed systems that call `generate()`; it now supports both model calls.
 - The model could escalate a router issue to a human before any diagnostic had run (a red LED is a symptom, not a
   Hard Fault). The diagnostic now runs first; a confirmed Hard Fault still escalates immediately.
 - Evaluation phrase matching ignores Arabic diacritics and alef variants.

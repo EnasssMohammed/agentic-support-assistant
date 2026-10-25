@@ -5,6 +5,8 @@ Evaluation v2: repeated runs, pass@1 / pass@k / pass^k, adversarial suite, relea
     uv run python run_eval_v2.py --runs 3 --only adversarial
     uv run python run_eval_v2.py --dry-run                # verify the harness, no API/Ollama needed
     uv run python run_eval_v2.py --runs 5 --gate          # exit code 1 on NO-GO (use in CI)
+    uv run python run_eval_v2.py --runs 5 --arm baseline  # comparison arm: one ungrounded model call
+    uv run python run_eval_v2.py --runs 5 --arm rag       # comparison arm: retrieval only, no policy/tools
 
 Every run uses a fresh conversation and a throw-away tickets/approvals folder, so evaluation
 never pollutes your real tickets. The diagnostic result is forced per case (see the
@@ -57,7 +59,8 @@ class _FailingModel:
         from src.model_client import ModelClientError
         raise ModelClientError("injected model failure")
 
-    generate = generate_structured
+    def generate(self, messages):
+        return self.generate_structured(messages, None)
 
 
 def run_case_once(make_agent, case: dict, workdir: Path) -> dict:
@@ -129,7 +132,12 @@ def render_report(meta: dict, outcomes: list[CaseOutcome], excerpts: dict, k: in
         reasons = [f"{lost} run(s) were lost to a network or provider outage; re-run when the connection is stable"]
     overall = summary["overall"]
 
-    lines = [f"# Velo evaluation v2: {meta['provider']} / {meta['model']}", ""]
+    arm = meta.get("arm", "agent")
+    lines = [f"# Velo evaluation v2 ({arm}): {meta['provider']} / {meta['model']}", ""]
+    if arm != "agent":
+        lines += [f"> **ABLATION ARM: `{arm}`.** Comparison evidence for the full agent. It has no escalation "
+                  "or diagnostic tool and no code-level policy, so failing the ticket and diagnostic gates is "
+                  "expected. It is never a release candidate.", ""]
     if lost:
         lines += [f"> **INVALID RUN.** {lost} run(s) failed with a connection error to the model or the "
                   "embedding service. The scores below mix outage with quality and must not be used.", ""]
@@ -195,8 +203,9 @@ def render_report(meta: dict, outcomes: list[CaseOutcome], excerpts: dict, k: in
     return "\n".join(lines), raw
 
 
-def report_stem(provider: str, model: str) -> str:
-    return "eval_v2_" + re.sub(r"[^A-Za-z0-9._-]+", "-", f"{provider}_{model}").strip("-")
+def report_stem(provider: str, model: str, arm: str = "agent") -> str:
+    prefix = "eval_v2_" if arm == "agent" else f"eval_v2_{arm}_"
+    return prefix + re.sub(r"[^A-Za-z0-9._-]+", "-", f"{provider}_{model}").strip("-")
 
 
 # --------------------------------------------------------------- dry run
@@ -210,6 +219,9 @@ def _dry_components():
             return "DRY RUN POLICY PASSAGE"
 
     class DryModel:
+        def generate(self, messages):
+            return "Please restart the router and try again."
+
         def generate_structured(self, messages, schema):
             latest = messages[-1]["content"].split("<latest_customer_message>")[-1]
             if "[DIAGNOSTIC RESULT]" not in latest and is_router_topic(latest):
@@ -230,6 +242,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cases", type=Path, default=CASES_FILE)
     parser.add_argument("--only", help="a family name or a case id")
     parser.add_argument("--dry-run", action="store_true", help="scripted model, no API needed")
+    parser.add_argument("--arm", choices=("agent", "rag", "baseline"), default="agent",
+                        help="system under test: the full agent, or an ablation arm to compare against")
     parser.add_argument("--min-pass1", type=float, default=0.80)
     parser.add_argument("--max-p95", type=float, default=30.0, help="seconds")
     parser.add_argument("--gate", action="store_true", help="exit 1 when the decision is NO-GO")
@@ -265,7 +279,10 @@ def main(argv: list[str] | None = None) -> int:
                   "Check the internet connection, VPN or proxy, and OPENAI_API_KEY, then run again.")
             return 3
 
-    def make_agent(case: dict) -> VeloAgent:
+    def make_agent(case: dict):
+        if args.arm != "agent":
+            from src.arms import build_arm
+            return build_arm(args.arm, model, rag)
         status = DiagnosticStatus(case.get("diagnostic", "software_glitch"))
         return VeloAgent(model=model, rag=rag, diagnostic_status=status)
 
@@ -277,8 +294,8 @@ def main(argv: list[str] | None = None) -> int:
 
     meta = {"provider": provider, "model": model_name, "date": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "cases_file": str(args.cases), "total_cases": len(all_cases), "runs": args.runs,
-            "dry_run": args.dry_run}
-    stem = report_stem(provider, model_name)
+            "dry_run": args.dry_run, "arm": args.arm}
+    stem = report_stem(provider, model_name, args.arm)
     REPORTS_DIR.mkdir(exist_ok=True)
 
     outcomes: list[CaseOutcome] = []
