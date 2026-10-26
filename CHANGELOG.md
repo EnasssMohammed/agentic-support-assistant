@@ -6,6 +6,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Held-out evaluation suite `evals/cases_v3_heldout.jsonl` (17 adversarial cases: indirect injection, tool-output injection,
+  cross-customer isolation, new attack wordings) with harness support (`poison`, `diagnostic_detail`, `side_conversation`),
+  per-suite report names, an attack success rate with a 95% upper bound, and `evals/frozen.json` guarding the frozen suite.
+- `docs/06-threat-model.md`: assets, actors, boundaries, threats with controls and evidence, tool inventory, residual risk.
 - `is_instruction_override`: deterministic guard that refuses instruction-override and prompt-extraction attempts
   without calling the model or creating a ticket.
 - `PROMPT_VERSION`, recorded in evaluation reports; `compare_arms.py` refuses to compare different versions.

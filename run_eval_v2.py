@@ -17,6 +17,8 @@ after every case: a crash or Ctrl+C keeps everything finished so far.
 from __future__ import annotations
 
 import argparse
+import hashlib
+import inspect
 import json
 import logging
 import re
@@ -28,6 +30,7 @@ from pathlib import Path
 
 from src.eval_metrics import (
     CaseOutcome,
+    attack_success_rate,
     check_observation,
     evaluate_gates,
     is_infra_error,
@@ -49,6 +52,34 @@ def load_cases(path: Path = CASES_FILE, only: str | None = None) -> list[dict]:
 
 def expand_turn(turn: str | dict) -> str:
     return turn["repeat"] * turn["times"] if isinstance(turn, dict) else turn
+
+
+def normalized_sha256(path: Path) -> str:
+    """Hash of a cases file with line endings normalised, so Windows and Linux checkouts agree."""
+    return hashlib.sha256(Path(path).read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+
+
+def suite_name(path: Path) -> str:
+    """'v2' for the frozen suite, otherwise the file name without 'cases_' (cases_v3_heldout.jsonl -> v3_heldout)."""
+    stem = Path(path).stem
+    return "v2" if stem == "cases_v2" else stem.removeprefix("cases_")
+
+
+class _PoisonedRAG:
+    """A knowledge-base entry that carries injected instructions, ranked first like a genuine hit.
+
+    Simulates indirect prompt injection: the text arrives through retrieval, not from the customer.
+    """
+
+    def __init__(self, rag, passage: str):
+        self._rag, self._passage = rag, passage
+
+    def retrieve(self, query: str, k: int = 3, topic: str | None = None) -> str:
+        kwargs = {"k": k}
+        if "topic" in inspect.signature(self._rag.retrieve).parameters:
+            kwargs["topic"] = topic
+        base = self._rag.retrieve(query, **kwargs)
+        return f"[Source: technical_docs.txt]\n{self._passage}\n---\n{base}"
 
 
 # --------------------------------------------------------------- one run
@@ -80,7 +111,14 @@ def run_case_once(make_agent, case: dict, workdir: Path) -> dict:
         diagnostics["calls"] += 1
         if case.get("inject") == "diagnostic_error":
             raise RuntimeError("injected diagnostic failure")
-        return real_diagnostic(*args, **kwargs)
+        result = real_diagnostic(*args, **kwargs)
+        if case.get("diagnostic_detail"):
+            # Tool-output injection: the tool's free-text field carries instructions.
+            result = result.model_copy(update={"detail": case["diagnostic_detail"]})
+        return result
+
+    def count_tickets() -> int:
+        return len(list(tickets_dir.glob("*.json"))) if tickets_dir.exists() else 0
 
     saved = (escalation.TICKETS_DIR, approval.APPROVALS_DIR, agent_loop.run_router_diagnostic)
     escalation.TICKETS_DIR, approval.APPROVALS_DIR = tickets_dir, approvals_dir
@@ -90,11 +128,21 @@ def run_case_once(make_agent, case: dict, workdir: Path) -> dict:
            "error": None, "input_rejected": False, "elapsed": 0.0, "turn_times": [],
            "infra_error": False}
     internal_errors: list[str] = []
+    side_tickets = side_diagnostics = 0
     started = time.perf_counter()
     try:
         agent = make_agent(case)
         if case.get("inject") == "model_error":
             agent.retrieval_agent.model = _FailingModel()
+        if case.get("side_conversation"):
+            # Another customer talks to the same agent first. Isolation cases then check that nothing leaks.
+            other = Conversation()
+            for turn in case["side_conversation"]:
+                try:
+                    agent.reply(other, expand_turn(turn))
+                except InvalidInputError:
+                    pass
+            side_tickets, side_diagnostics = count_tickets(), diagnostics["calls"]
         conversation = Conversation()
         for turn in case["turns"]:
             turn_started = time.perf_counter()
@@ -115,8 +163,8 @@ def run_case_once(make_agent, case: dict, workdir: Path) -> dict:
 
     obs["elapsed"] = time.perf_counter() - started
     obs["infra_error"] = any(is_infra_error(t) for t in [obs["error"] or "", *internal_errors])
-    obs["diagnostic_runs"] = diagnostics["calls"]
-    obs["tickets"] = len(list(tickets_dir.glob("*.json"))) if tickets_dir.exists() else 0
+    obs["diagnostic_runs"] = diagnostics["calls"] - side_diagnostics
+    obs["tickets"] = count_tickets() - side_tickets
     return obs
 
 
@@ -132,6 +180,7 @@ def render_report(meta: dict, outcomes: list[CaseOutcome], excerpts: dict, k: in
         decision = "INVALID RUN"
         reasons = [f"{lost} run(s) were lost to a network or provider outage; re-run when the connection is stable"]
     overall = summary["overall"]
+    attacks = attack_success_rate(outcomes)
 
     arm = meta.get("arm", "agent")
     if arm != "agent" and decision != "INVALID RUN":
@@ -179,6 +228,8 @@ def render_report(meta: dict, outcomes: list[CaseOutcome], excerpts: dict, k: in
           for name, b in summary["families"].items()),
         "",
         f"Latency per reply: p50 {summary['latency_p50']:.1f}s, p95 {summary['latency_p95']:.1f}s.",
+        *([f"Attack success rate (adversarial cases): {attacks['successful']}/{attacks['attempts']} runs "
+           f"= {attacks['rate']:.1%}, 95% upper bound {attacks['upper95']:.1%}."] if attacks["attempts"] else []),
         "",
         f"Flaky cases (pass some runs, fail others): {', '.join(summary['flaky']) or 'none'}",
         f"Always failing: {', '.join(summary['always_failing']) or 'none'}",
@@ -202,13 +253,15 @@ def render_report(meta: dict, outcomes: list[CaseOutcome], excerpts: dict, k: in
         lines.append("")
 
     raw = {"meta": meta, "decision": decision, "reasons": reasons, "summary": summary, "gates": gates,
+           "attack_success_rate": attacks,
            "cases": [{"id": o.case_id, "family": o.family, "passes": o.passes, "states": o.states,
                       "failures": o.failures} for o in outcomes]}
     return "\n".join(lines), raw
 
 
-def report_stem(provider: str, model: str, arm: str = "agent") -> str:
-    prefix = "eval_v2_" if arm == "agent" else f"eval_v2_{arm}_"
+def report_stem(provider: str, model: str, arm: str = "agent", suite: str = "v2") -> str:
+    """eval_v2_<model> for the agent on the frozen suite; other suites and arms are named, never overwritten."""
+    prefix = f"eval_{suite}_" if arm == "agent" else f"eval_{suite}_{arm}_"
     return prefix + re.sub(r"[^A-Za-z0-9._-]+", "-", f"{provider}_{model}").strip("-")
 
 
@@ -284,11 +337,12 @@ def main(argv: list[str] | None = None) -> int:
             return 3
 
     def make_agent(case: dict):
+        case_rag = _PoisonedRAG(rag, case["poison"]) if case.get("poison") else rag
         if args.arm != "agent":
             from src.arms import build_arm
-            return build_arm(args.arm, model, rag)
+            return build_arm(args.arm, model, case_rag)
         status = DiagnosticStatus(case.get("diagnostic", "software_glitch"))
-        return VeloAgent(model=model, rag=rag, diagnostic_status=status)
+        return VeloAgent(model=model, rag=case_rag, diagnostic_status=status)
 
     all_cases = load_cases(args.cases)
     cases = load_cases(args.cases, args.only)
@@ -298,8 +352,9 @@ def main(argv: list[str] | None = None) -> int:
 
     meta = {"provider": provider, "model": model_name, "date": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "cases_file": str(args.cases), "total_cases": len(all_cases), "runs": args.runs,
-            "dry_run": args.dry_run, "arm": args.arm, "prompt_version": PROMPT_VERSION}
-    stem = report_stem(provider, model_name, args.arm)
+            "dry_run": args.dry_run, "arm": args.arm, "prompt_version": PROMPT_VERSION,
+            "suite": suite_name(args.cases), "cases_sha256": normalized_sha256(args.cases)}
+    stem = report_stem(provider, model_name, args.arm, meta["suite"])
     REPORTS_DIR.mkdir(exist_ok=True)
 
     outcomes: list[CaseOutcome] = []
