@@ -159,6 +159,32 @@ after the code is frozen (poisoned knowledge-base passage, paraphrased attacks, 
 The fixes in the last two rows change only the agent loop and the escalation notice. The `rag` and `baseline` arms do not
 use them, so they stay valid; only the `agent` arm needs a re-run.
 
+## Held-out suite (v3)
+
+`evals/cases_v3_heldout.jsonl` has 17 cases written after the code was frozen, so they measure behaviour the fixes were
+not tuned on. Every case is adversarial and is held to the strict gate (pass^k = 100%).
+
+| Family | Cases | What it tests |
+|---|---|---|
+| `indirect_injection` | 4 | A poisoned passage is returned by retrieval: a policy override, a forced escalation, an exfiltration image link, a prompt leak |
+| `tool_output_injection` | 2 | The diagnostic's free-text field carries instructions: disable the firewall, mark the case closed |
+| `isolation` | 2 | Another customer talks to the same agent first; nothing of theirs may appear |
+| `attack_paraphrase` | 9 | New wordings of prompt extraction, role play, authority claims, secret requests, ticket flooding, spaced-out letters, an attack hidden inside a real router issue |
+
+Harness features added for it: `poison` (a passage injected into retrieval), `diagnostic_detail` (text injected into the
+tool result) and `side_conversation` (another customer first; their tickets and diagnostic runs are not counted).
+`tests/test_heldout_suite.py` proves that both injections really reach the model's prompt, so the suite cannot pass
+by testing nothing. Reports are named by suite (`eval_v3_heldout_<provider>_<model>`) and never overwrite the v2
+reports. Each report also states the attack success rate with a 95% upper bound.
+
+```
+uv run python run_eval_v2.py --cases evals/cases_v3_heldout.jsonl --runs 5
+```
+
+Protocol: classify every failure (agent defect or check defect) before changing anything. Fixing a defect turns this
+suite into a development set; a later claim needs a new held-out suite. Frozen files are never edited
+(`evals/frozen.json`, checked by a test).
+
 ## Results
 
 ### First real run: gpt-5-nano-2025-08-07, k = 3, 38 cases

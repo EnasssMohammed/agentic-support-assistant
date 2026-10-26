@@ -42,6 +42,8 @@ p95 reply latency is 40.7 s against the 30 s evaluation budget. The success cont
 
 ## Remaining risks (known, not yet measured)
 
+The threat model (`06-threat-model.md`) lists each threat with its controls, evidence and residual risk.
+
 - A poisoned knowledge-base passage (indirect prompt injection) and instructions hidden in a tool result are not tested.
 - Isolation between two customers' conversations is assumed, not tested.
 - Topic detection is keyword-based (`src/intents.py`); paraphrases outside the keyword lists fall back to the model.

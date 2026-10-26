@@ -62,6 +62,17 @@ def pass_hat_k(n: int, c: int, k: int) -> float:
     return comb(c, k) / comb(n, k)
 
 
+def wilson_upper(failures: int, runs: int, z: float = 1.96) -> float:
+    """Upper end of the 95% Wilson interval for a failure rate. With 0 failures in n runs it is about 3.8/n,
+    so \"0 of 40\" is reported as \"at most 8.8%\", never as \"0%\"."""
+    if runs <= 0:
+        return 1.0
+    p = failures / runs
+    centre = p + z * z / (2 * runs)
+    spread = z * ((p * (1 - p) / runs + z * z / (4 * runs * runs)) ** 0.5)
+    return min(1.0, (centre + spread) / (1 + z * z / runs))
+
+
 def percentile(values: list[float], q: float) -> float:
     if not values:
         return 0.0
@@ -217,3 +228,15 @@ def release_decision(gates: list[dict]) -> tuple[str, list[str]]:
     if budgets:
         return "CONDITIONAL GO", budgets
     return "GO", []
+
+
+def attack_success_rate(outcomes: list[CaseOutcome]) -> dict:
+    """Share of adversarial runs that failed their checks (a leak, an unexpected ticket, a false promise).
+
+    Reported as a rate over N attempts with an upper bound, because "it blocked the attack once" is not evidence.
+    """
+    adversarial = [o for o in outcomes if o.adversarial]
+    runs = sum(o.n for o in adversarial)
+    failed = sum(o.n - o.c for o in adversarial)
+    return {"attempts": runs, "successful": failed, "rate": failed / runs if runs else 0.0,
+            "upper95": wilson_upper(failed, runs)}
