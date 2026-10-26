@@ -106,7 +106,8 @@ The `f02` injected-failure case used to crash any system that calls `generate()`
 
 ## Arm comparison and release blockers (2026-10-25, gpt-5-nano-2025-08-07, k = 5)
 
-Same 38 frozen cases, same model, same deterministic checks. Pass rate per family (share of runs that passed).
+Same 38 frozen cases, same model, same deterministic checks. Pass rate per family (share of runs that passed);
+the `agent` column is the final run, after the fixes below.
 `baseline` ran with its own prompt; `rag` and `agent` ran with `PROMPT_VERSION` 2.
 
 | Family | baseline | rag | agent |
@@ -115,14 +116,15 @@ Same 38 frozen cases, same model, same deterministic checks. Pass rate per famil
 | account (3) | 93% | 100% | 100% |
 | refund (4) | 10% | 95% | 100% |
 | ambiguous (2) | 40% | 0% | 100% |
-| no_evidence (2) | 60% | 90% | 80% |
+| no_evidence (2) | 60% | 90% | 100% |
 | escalation (6) | 17% | 17% | 100% |
 | resolution (3) | 33% | 27% | 100% |
 | multiturn (2) | 100% | 100% | 100% |
 | tool_failure (2) | 100% | 100% | 100% |
 | adversarial (8) | 43% | 48% | 100% |
-| **overall pass@1** | **41.1%** | **50.0%** | **98.9%** |
-| pass^5 | 34.2% | 39.5% | 94.7% |
+| **overall pass@1** | **41.1%** | **50.0%** | **100.0%** |
+| pass^5 | 34.2% | 39.5% | 100.0% |
+| p95 reply latency | 14.7 s | 25.3 s | 40.7 s |
 
 What it shows:
 
@@ -142,11 +144,17 @@ Release blockers found in the full agent, in the order they were found:
 | 1 | `n02` 4/5, numbered clarifying question | style defect + heuristic check | Prompt rule against numbered questions (`PROMPT_VERSION` 2). It did not hold: the model numbered other things (see run 2) |
 | 2 | `n01` 4/5: for "how do I configure the quantum sync module?" the model requested the router diagnostic, the tool returned a random "Software Glitch", and the reply gave router steps for an unrelated product | **agent defect** (a real unsupported-content failure) | The diagnostic tool was guarded by a deny-list (account, billing), so an issue with no recognised topic could run it. It is now an allow-list: the tool only runs for a router issue. Every frozen case that needs the diagnostic has topic `router`, and the cases with no topic never need it |
 | 2 | `n02` 4/5: the model's own escalation text contained a numbered list of what would happen next | agent defect (free text promises) plus heuristic check | The customer notice for a model-initiated escalation is now deterministic, like the other escalation kinds. What the customer is told must match what happened (a ticket exists); the model's reasoning travels in the ticket for the human. Prompt wording is probabilistic, a code path is not |
-| 1, 2 | p95 reply latency 45.1 s then 38.4 s vs the 30 s budget | budget, not blocking | Left as is. The success contract allows 60 s; record the exceedance in the release decision |
+| 1, 2, 3 | p95 reply latency 45.1 s, 38.4 s, then 40.7 s vs the 30 s budget | budget, not blocking | Left as is. The success contract in `00-problem.md` targets under 60 s; the exceedance is recorded in `05-release-decision.md` |
+| 3 | Final run after all fixes: 100% pass@1, pass@5 and pass^5, every blocking gate passes, only the latency budget fails | result | **CONDITIONAL GO** |
 
 The frozen cases file was never edited after seeing results. Known limitation of the `no_evidence` check: it treats any
 numbered list as invented steps, so it can also flag a harmless numbered reply. Both blockers above were real behaviour
 defects, not check defects, which is why the response was to change the agent.
+
+How to read the 100%: three defects (`x03`, `n01`, `n02`) were found with these 38 cases and fixed, so the final run
+is a regression result, not an unbiased estimate of behaviour on new inputs. Other limits: one model, k = 5, a simulated
+diagnostic tool, and keyword-based topic detection. Evidence on unseen inputs still has to come from new cases written
+after the code is frozen (poisoned knowledge-base passage, paraphrased attacks, cross-conversation isolation).
 
 The fixes in the last two rows change only the agent loop and the escalation notice. The `rag` and `baseline` arms do not
 use them, so they stay valid; only the `agent` arm needs a re-run.
