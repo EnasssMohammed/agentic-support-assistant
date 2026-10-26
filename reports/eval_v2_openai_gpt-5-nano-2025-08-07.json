@@ -2,25 +2,24 @@
   "meta": {
     "provider": "openai",
     "model": "gpt-5-nano-2025-08-07",
-    "date": "2026-10-24T14:44:27+00:00",
+    "date": "2026-10-25T23:19:45+00:00",
     "cases_file": "evals\\cases_v2.jsonl",
     "total_cases": 38,
     "runs": 5,
-    "dry_run": false
+    "dry_run": false,
+    "arm": "agent",
+    "prompt_version": "2"
   },
-  "decision": "NO-GO",
+  "decision": "CONDITIONAL GO",
   "reasons": [
-    "No unexpected or missing tickets",
-    "Router issues are diagnosed before guidance",
-    "No unsupported or leaked content in replies",
     "p95 reply latency <= 30s (budget)"
   ],
   "summary": {
     "overall": {
       "cases": 38,
-      "pass@1": 0.9684210526315788,
+      "pass@1": 1.0,
       "pass@5": 1.0,
-      "pass^5": 0.868421052631579
+      "pass^5": 1.0
     },
     "families": {
       "account": {
@@ -43,9 +42,9 @@
       },
       "connectivity": {
         "cases": 6,
-        "pass@1": 0.9333333333333332,
+        "pass@1": 1.0,
         "pass@5": 1.0,
-        "pass^5": 0.6666666666666666
+        "pass^5": 1.0
       },
       "escalation": {
         "cases": 6,
@@ -61,15 +60,15 @@
       },
       "no_evidence": {
         "cases": 2,
-        "pass@1": 0.9,
+        "pass@1": 1.0,
         "pass@5": 1.0,
-        "pass^5": 0.5
+        "pass^5": 1.0
       },
       "refund": {
         "cases": 4,
-        "pass@1": 0.85,
+        "pass@1": 1.0,
         "pass@5": 1.0,
-        "pass^5": 0.5
+        "pass^5": 1.0
       },
       "resolution": {
         "cases": 3,
@@ -84,23 +83,17 @@
         "pass^5": 1.0
       }
     },
-    "flaky": [
-      "c02",
-      "c03",
-      "r01",
-      "r03",
-      "n01"
-    ],
+    "flaky": [],
     "always_failing": [],
-    "latency_p50": 24.0345487499726,
-    "latency_p95": 62.65051180002047
+    "latency_p50": 14.016308949969243,
+    "latency_p95": 40.65058860008139
   },
   "gates": [
     {
       "name": "No unexpected or missing tickets",
       "blocking": true,
-      "ok": false,
-      "detail": "1 violation(s)"
+      "ok": true,
+      "detail": "0 violation(s)"
     },
     {
       "name": "Diagnostic tool used at most once per conversation",
@@ -111,14 +104,14 @@
     {
       "name": "Router issues are diagnosed before guidance",
       "blocking": true,
-      "ok": false,
-      "detail": "1 violation(s)"
+      "ok": true,
+      "detail": "0 violation(s)"
     },
     {
       "name": "No unsupported or leaked content in replies",
       "blocking": true,
-      "ok": false,
-      "detail": "3 violation(s)"
+      "ok": true,
+      "detail": "0 violation(s)"
     },
     {
       "name": "No unhandled errors",
@@ -136,13 +129,13 @@
       "name": "pass@1 >= 80%",
       "blocking": false,
       "ok": true,
-      "detail": "96.8%"
+      "detail": "100.0%"
     },
     {
       "name": "p95 reply latency <= 30s",
       "blocking": false,
       "ok": false,
-      "detail": "62.7s"
+      "detail": "40.7s"
     }
   ],
   "cases": [
@@ -175,7 +168,7 @@
       "id": "c02",
       "family": "connectivity",
       "passes": [
-        false,
+        true,
         true,
         true,
         true,
@@ -189,12 +182,7 @@
         "awaiting_customer"
       ],
       "failures": [
-        [
-          [
-            "include",
-            "final reply has none of ['restart', 'reboot', 'unplug']"
-          ]
-        ],
+        [],
         [],
         [],
         [],
@@ -209,38 +197,21 @@
         true,
         true,
         true,
-        false
+        true
       ],
       "states": [
         "awaiting_customer",
         "awaiting_customer",
         "awaiting_customer",
         "awaiting_customer",
-        "escalated"
+        "awaiting_customer"
       ],
       "failures": [
         [],
         [],
         [],
         [],
-        [
-          [
-            "state",
-            "ended in escalated, expected one of ['awaiting_customer']"
-          ],
-          [
-            "tickets",
-            "1 ticket(s) created, expected 0"
-          ],
-          [
-            "diagnostics_min",
-            "ran 0x, expected at least 1"
-          ],
-          [
-            "include",
-            "final reply has none of ['restart', 'reboot', 'unplug']"
-          ]
-        ]
+        []
       ]
     },
     {
@@ -398,7 +369,7 @@
       "family": "refund",
       "passes": [
         true,
-        false,
+        true,
         true,
         true,
         true
@@ -412,12 +383,7 @@
       ],
       "failures": [
         [],
-        [
-          [
-            "exclude",
-            "a reply contains 'exception'"
-          ]
-        ],
+        [],
         [],
         [],
         []
@@ -452,10 +418,10 @@
       "id": "r03",
       "family": "refund",
       "passes": [
-        false,
         true,
         true,
-        false,
+        true,
+        true,
         true
       ],
       "states": [
@@ -466,20 +432,10 @@
         "awaiting_customer"
       ],
       "failures": [
-        [
-          [
-            "exclude",
-            "a reply contains 'exception'"
-          ]
-        ],
         [],
         [],
-        [
-          [
-            "exclude",
-            "a reply contains 'exception'"
-          ]
-        ],
+        [],
+        [],
         []
       ]
     },
@@ -562,26 +518,21 @@
       "id": "n01",
       "family": "no_evidence",
       "passes": [
-        false,
+        true,
         true,
         true,
         true,
         true
       ],
       "states": [
-        "awaiting_customer",
-        "awaiting_customer",
         "escalated",
-        "awaiting_customer",
+        "escalated",
+        "escalated",
+        "escalated",
         "awaiting_customer"
       ],
       "failures": [
-        [
-          [
-            "include",
-            "final reply has none of [\"don't have\", 'do not have', 'no information']"
-          ]
-        ],
+        [],
         [],
         [],
         [],
@@ -600,10 +551,10 @@
       ],
       "states": [
         "awaiting_customer",
-        "awaiting_customer",
-        "awaiting_customer",
         "escalated",
-        "escalated"
+        "escalated",
+        "awaiting_customer",
+        "awaiting_customer"
       ],
       "failures": [
         [],
