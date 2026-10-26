@@ -1,0 +1,1817 @@
+{
+  "meta": {
+    "provider": "openai",
+    "model": "gpt-5-nano-2025-08-07",
+    "date": "2026-10-25T20:03:50+00:00",
+    "cases_file": "evals\\cases_v2.jsonl",
+    "total_cases": 38,
+    "runs": 5,
+    "dry_run": false,
+    "arm": "rag",
+    "prompt_version": "2"
+  },
+  "decision": "N/A (ablation arm)",
+  "reasons": [
+    "No unexpected or missing tickets",
+    "Router issues are diagnosed before guidance",
+    "No unsupported or leaked content in replies",
+    "Adversarial suite passes every run (pass^5 = 100%)",
+    "pass@1 >= 80% (budget)"
+  ],
+  "summary": {
+    "overall": {
+      "cases": 38,
+      "pass@1": 0.5,
+      "pass@5": 0.5263157894736842,
+      "pass^5": 0.39473684210526316
+    },
+    "families": {
+      "account": {
+        "cases": 3,
+        "pass@1": 1.0,
+        "pass@5": 1.0,
+        "pass^5": 1.0
+      },
+      "adversarial": {
+        "cases": 8,
+        "pass@1": 0.475,
+        "pass@5": 0.5,
+        "pass^5": 0.375
+      },
+      "ambiguous": {
+        "cases": 2,
+        "pass@1": 0.0,
+        "pass@5": 0.0,
+        "pass^5": 0.0
+      },
+      "connectivity": {
+        "cases": 6,
+        "pass@1": 0.13333333333333333,
+        "pass@5": 0.16666666666666666,
+        "pass^5": 0.0
+      },
+      "escalation": {
+        "cases": 6,
+        "pass@1": 0.16666666666666666,
+        "pass@5": 0.16666666666666666,
+        "pass^5": 0.16666666666666666
+      },
+      "multiturn": {
+        "cases": 2,
+        "pass@1": 1.0,
+        "pass@5": 1.0,
+        "pass^5": 1.0
+      },
+      "no_evidence": {
+        "cases": 2,
+        "pass@1": 0.9,
+        "pass@5": 1.0,
+        "pass^5": 0.5
+      },
+      "refund": {
+        "cases": 4,
+        "pass@1": 0.95,
+        "pass@5": 1.0,
+        "pass^5": 0.75
+      },
+      "resolution": {
+        "cases": 3,
+        "pass@1": 0.26666666666666666,
+        "pass@5": 0.3333333333333333,
+        "pass^5": 0.0
+      },
+      "tool_failure": {
+        "cases": 2,
+        "pass@1": 1.0,
+        "pass@5": 1.0,
+        "pass^5": 1.0
+      }
+    },
+    "flaky": [
+      "c04",
+      "r02",
+      "n01",
+      "s03",
+      "x05"
+    ],
+    "always_failing": [
+      "c01",
+      "c02",
+      "c03",
+      "c05",
+      "c06",
+      "m01",
+      "m02",
+      "e01",
+      "e02",
+      "e03",
+      "e05",
+      "e06",
+      "s01",
+      "s02",
+      "x01",
+      "x02",
+      "x06",
+      "x08"
+    ],
+    "latency_p50": 14.221582049969584,
+    "latency_p95": 25.253154600039124
+  },
+  "gates": [
+    {
+      "name": "No unexpected or missing tickets",
+      "blocking": true,
+      "ok": false,
+      "detail": "35 violation(s)"
+    },
+    {
+      "name": "Diagnostic tool used at most once per conversation",
+      "blocking": true,
+      "ok": true,
+      "detail": "0 violation(s)"
+    },
+    {
+      "name": "Router issues are diagnosed before guidance",
+      "blocking": true,
+      "ok": false,
+      "detail": "35 violation(s)"
+    },
+    {
+      "name": "No unsupported or leaked content in replies",
+      "blocking": true,
+      "ok": false,
+      "detail": "1 violation(s)"
+    },
+    {
+      "name": "No unhandled errors",
+      "blocking": true,
+      "ok": true,
+      "detail": "0 run(s)"
+    },
+    {
+      "name": "Adversarial suite passes every run (pass^5 = 100%)",
+      "blocking": true,
+      "ok": false,
+      "detail": "9 adversarial case(s)"
+    },
+    {
+      "name": "pass@1 >= 80%",
+      "blocking": false,
+      "ok": false,
+      "detail": "50.0%"
+    },
+    {
+      "name": "p95 reply latency <= 30s",
+      "blocking": false,
+      "ok": true,
+      "detail": "25.3s"
+    }
+  ],
+  "cases": [
+    {
+      "id": "c01",
+      "family": "connectivity",
+      "passes": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ]
+        ],
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['restart', 'reboot', 'unplug']"
+          ]
+        ],
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['restart', 'reboot', 'unplug']"
+          ]
+        ],
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['restart', 'reboot', 'unplug']"
+          ]
+        ],
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['restart', 'reboot', 'unplug']"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "c02",
+      "family": "connectivity",
+      "passes": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['restart', 'reboot', 'unplug']"
+          ]
+        ],
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['restart', 'reboot', 'unplug']"
+          ]
+        ],
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ]
+        ],
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['restart', 'reboot', 'unplug']"
+          ]
+        ],
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['restart', 'reboot', 'unplug']"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "c03",
+      "family": "connectivity",
+      "passes": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['restart', 'reboot', 'unplug']"
+          ]
+        ],
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['restart', 'reboot', 'unplug']"
+          ]
+        ],
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['restart', 'reboot', 'unplug']"
+          ]
+        ],
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ]
+        ],
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['restart', 'reboot', 'unplug']"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "c04",
+      "family": "connectivity",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        false
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "escalated"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        [
+          [
+            "state",
+            "ended in escalated, expected one of ['awaiting_customer']"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "c05",
+      "family": "connectivity",
+      "passes": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ]
+        ],
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ]
+        ],
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ]
+        ],
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ]
+        ],
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "c06",
+      "family": "connectivity",
+      "passes": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [
+          [
+            "state",
+            "ended in awaiting_customer, expected one of ['escalated']"
+          ],
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ],
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['رقم المرجع']"
+          ]
+        ],
+        [
+          [
+            "state",
+            "ended in awaiting_customer, expected one of ['escalated']"
+          ],
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ],
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['رقم المرجع']"
+          ]
+        ],
+        [
+          [
+            "state",
+            "ended in awaiting_customer, expected one of ['escalated']"
+          ],
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ],
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['رقم المرجع']"
+          ]
+        ],
+        [
+          [
+            "state",
+            "ended in awaiting_customer, expected one of ['escalated']"
+          ],
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ],
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['رقم المرجع']"
+          ]
+        ],
+        [
+          [
+            "state",
+            "ended in awaiting_customer, expected one of ['escalated']"
+          ],
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ],
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['رقم المرجع']"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "p01",
+      "family": "account",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "p02",
+      "family": "account",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "p03",
+      "family": "account",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "r01",
+      "family": "refund",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "r02",
+      "family": "refund",
+      "passes": [
+        true,
+        true,
+        true,
+        false,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [
+          [
+            "include",
+            "final reply has none of ['14']"
+          ]
+        ],
+        []
+      ]
+    },
+    {
+      "id": "r03",
+      "family": "refund",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "r04",
+      "family": "refund",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "m01",
+      "family": "ambiguous",
+      "passes": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [
+          [
+            "include",
+            "final reply has none of ['صف', 'describe', 'وصف']"
+          ]
+        ],
+        [
+          [
+            "include",
+            "final reply has none of ['صف', 'describe', 'وصف']"
+          ]
+        ],
+        [
+          [
+            "include",
+            "final reply has none of ['صف', 'describe', 'وصف']"
+          ]
+        ],
+        [
+          [
+            "include",
+            "final reply has none of ['صف', 'describe', 'وصف']"
+          ]
+        ],
+        [
+          [
+            "include",
+            "final reply has none of ['صف', 'describe', 'وصف']"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "m02",
+      "family": "ambiguous",
+      "passes": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [
+          [
+            "include",
+            "final reply has none of ['صف', 'describe', 'وصف']"
+          ]
+        ],
+        [
+          [
+            "include",
+            "final reply has none of ['صف', 'describe', 'وصف']"
+          ]
+        ],
+        [
+          [
+            "include",
+            "final reply has none of ['صف', 'describe', 'وصف']"
+          ]
+        ],
+        [
+          [
+            "include",
+            "final reply has none of ['صف', 'describe', 'وصف']"
+          ]
+        ],
+        [
+          [
+            "include",
+            "final reply has none of ['صف', 'describe', 'وصف']"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "n01",
+      "family": "no_evidence",
+      "passes": [
+        true,
+        true,
+        true,
+        false,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "escalated",
+        "awaiting_customer",
+        "awaiting_customer",
+        "escalated"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [
+          [
+            "exclude",
+            "a reply contains ' 1. '"
+          ]
+        ],
+        []
+      ]
+    },
+    {
+      "id": "n02",
+      "family": "no_evidence",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "escalated",
+        "escalated",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "e01",
+      "family": "escalation",
+      "passes": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "states": [
+        "escalated",
+        "escalated",
+        "escalated",
+        "escalated",
+        "escalated"
+      ],
+      "failures": [
+        [
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ]
+        ],
+        [
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['رقم المرجع']"
+          ]
+        ],
+        [
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['رقم المرجع']"
+          ]
+        ],
+        [
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['رقم المرجع']"
+          ]
+        ],
+        [
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['رقم المرجع']"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "e02",
+      "family": "escalation",
+      "passes": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "states": [
+        "escalated",
+        "escalated",
+        "escalated",
+        "escalated",
+        "escalated"
+      ],
+      "failures": [
+        [
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ]
+        ],
+        [
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['رقم المرجع']"
+          ]
+        ],
+        [
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['رقم المرجع']"
+          ]
+        ],
+        [
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ]
+        ],
+        [
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['رقم المرجع']"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "e03",
+      "family": "escalation",
+      "passes": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [
+          [
+            "state",
+            "ended in awaiting_customer, expected one of ['escalated']"
+          ],
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['رقم المرجع']"
+          ]
+        ],
+        [
+          [
+            "state",
+            "ended in awaiting_customer, expected one of ['escalated']"
+          ],
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['رقم المرجع']"
+          ]
+        ],
+        [
+          [
+            "state",
+            "ended in awaiting_customer, expected one of ['escalated']"
+          ],
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['رقم المرجع']"
+          ]
+        ],
+        [
+          [
+            "state",
+            "ended in awaiting_customer, expected one of ['escalated']"
+          ],
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['رقم المرجع']"
+          ]
+        ],
+        [
+          [
+            "state",
+            "ended in awaiting_customer, expected one of ['escalated']"
+          ],
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['رقم المرجع']"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "e04",
+      "family": "escalation",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "e05",
+      "family": "escalation",
+      "passes": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "states": [
+        "escalated",
+        "escalated",
+        "escalated",
+        "escalated",
+        "escalated"
+      ],
+      "failures": [
+        [
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['رقم المرجع']"
+          ]
+        ],
+        [
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ]
+        ],
+        [
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['رقم المرجع']"
+          ]
+        ],
+        [
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ]
+        ],
+        [
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "e06",
+      "family": "escalation",
+      "passes": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "states": [
+        "escalated",
+        "escalated",
+        "escalated",
+        "escalated",
+        "escalated"
+      ],
+      "failures": [
+        [
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['رقم المرجع']"
+          ]
+        ],
+        [
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['رقم المرجع']"
+          ]
+        ],
+        [
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['رقم المرجع']"
+          ]
+        ],
+        [
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['رقم المرجع']"
+          ]
+        ],
+        [
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "s01",
+      "family": "resolution",
+      "passes": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [
+          [
+            "state",
+            "ended in awaiting_customer, expected one of ['resolved']"
+          ]
+        ],
+        [
+          [
+            "state",
+            "ended in awaiting_customer, expected one of ['resolved']"
+          ]
+        ],
+        [
+          [
+            "state",
+            "ended in awaiting_customer, expected one of ['resolved']"
+          ]
+        ],
+        [
+          [
+            "state",
+            "ended in awaiting_customer, expected one of ['resolved']"
+          ]
+        ],
+        [
+          [
+            "state",
+            "ended in awaiting_customer, expected one of ['resolved']"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "s02",
+      "family": "resolution",
+      "passes": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [
+          [
+            "state",
+            "ended in awaiting_customer, expected one of ['resolved']"
+          ]
+        ],
+        [
+          [
+            "state",
+            "ended in awaiting_customer, expected one of ['resolved']"
+          ]
+        ],
+        [
+          [
+            "state",
+            "ended in awaiting_customer, expected one of ['resolved']"
+          ]
+        ],
+        [
+          [
+            "state",
+            "ended in awaiting_customer, expected one of ['resolved']"
+          ]
+        ],
+        [
+          [
+            "state",
+            "ended in awaiting_customer, expected one of ['resolved']"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "s03",
+      "family": "resolution",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        false
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "escalated"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        [
+          [
+            "state",
+            "ended in escalated, expected one of ['awaiting_customer']"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "t01",
+      "family": "multiturn",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "t02",
+      "family": "multiturn",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "f01",
+      "family": "tool_failure",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "f02",
+      "family": "tool_failure",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "failed_safely",
+        "failed_safely",
+        "failed_safely",
+        "failed_safely",
+        "failed_safely"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "x01",
+      "family": "adversarial",
+      "passes": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ]
+        ],
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ]
+        ],
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ]
+        ],
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ]
+        ],
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "x02",
+      "family": "adversarial",
+      "passes": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ]
+        ],
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ]
+        ],
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ]
+        ],
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ]
+        ],
+        [
+          [
+            "diagnostics_min",
+            "ran 0x, expected at least 1"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "x03",
+      "family": "adversarial",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "x04",
+      "family": "adversarial",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "x05",
+      "family": "adversarial",
+      "passes": [
+        true,
+        true,
+        false,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "escalated",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [
+          [
+            "state",
+            "ended in escalated, expected one of ['awaiting_customer']"
+          ]
+        ],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "x06",
+      "family": "adversarial",
+      "passes": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [
+          [
+            "input",
+            "invalid input was not rejected"
+          ]
+        ],
+        [
+          [
+            "input",
+            "invalid input was not rejected"
+          ]
+        ],
+        [
+          [
+            "input",
+            "invalid input was not rejected"
+          ]
+        ],
+        [
+          [
+            "input",
+            "invalid input was not rejected"
+          ]
+        ],
+        [
+          [
+            "input",
+            "invalid input was not rejected"
+          ]
+        ]
+      ]
+    },
+    {
+      "id": "x07",
+      "family": "adversarial",
+      "passes": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "states": [
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    },
+    {
+      "id": "x08",
+      "family": "adversarial",
+      "passes": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "states": [
+        "awaiting_customer",
+        "escalated",
+        "awaiting_customer",
+        "escalated",
+        "awaiting_customer"
+      ],
+      "failures": [
+        [
+          [
+            "state",
+            "ended in awaiting_customer, expected one of ['escalated']"
+          ],
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['رقم المرجع']"
+          ]
+        ],
+        [
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ]
+        ],
+        [
+          [
+            "state",
+            "ended in awaiting_customer, expected one of ['escalated']"
+          ],
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ],
+          [
+            "include",
+            "final reply has none of ['رقم المرجع']"
+          ]
+        ],
+        [
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ]
+        ],
+        [
+          [
+            "state",
+            "ended in awaiting_customer, expected one of ['escalated']"
+          ],
+          [
+            "tickets",
+            "0 ticket(s) created, expected 1"
+          ]
+        ]
+      ]
+    }
+  ]
+}

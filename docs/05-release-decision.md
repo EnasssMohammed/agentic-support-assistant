@@ -58,6 +58,6 @@ p95 reply latency is 40.7 s against the 30 s evaluation budget. The success cont
 
 ## Owner and next review
 
-- Owner: [fill in]
-- Next review: [fill in a date]. Re-run all three arms whenever the model, the prompt version, the knowledge base or the
+- Owner: Enas Mohammed
+- Next review: [2026-11-15]. Re-run all three arms whenever the model, the prompt version, the knowledge base or the
   cases change, and review this file with the new numbers.
