@@ -27,7 +27,20 @@ def isolate_configuration(request, monkeypatch):
         monkeypatch.delenv(name, raising=False)
 
 
+MAX_TEST_ID_LENGTH = 20_000
+
+
 def pytest_collection_modifyitems(items):
     for item in items:
         if item.path.name in LLM_TEST_FILES:
             item.add_marker(pytest.mark.requires_llm)
+
+    # pytest copies a test's name into an environment variable, and Windows rejects values over 32,767 characters.
+    # A large parameter value without an explicit id silently becomes part of that name, so refuse it at collection
+    # time on every platform instead of letting it fail only on Windows.
+    too_long = [item.nodeid[:90] + "..." for item in items if len(item.nodeid) > MAX_TEST_ID_LENGTH]
+    if too_long:
+        raise pytest.UsageError(
+            f"Test ids longer than {MAX_TEST_ID_LENGTH} characters (give the parameter an explicit id=...):\n"
+            + "\n".join(too_long)
+        )

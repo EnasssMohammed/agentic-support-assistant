@@ -43,7 +43,8 @@ def test_directory_parts_are_never_trusted(raw):
     assert "/" not in name and "\\" not in name and ".." not in name and not problems
 
 
-@pytest.mark.parametrize("raw", ["policy.exe", "policy", ".hidden.md", "CON.txt", "technical_docs.txt", "x" * 120 + ".md"])
+@pytest.mark.parametrize("raw", ["policy.exe", "policy", ".hidden.md", "CON.txt", "technical_docs.txt",
+                                 pytest.param("x" * 120 + ".md", id="name-too-long")])
 def test_bad_names_are_refused(raw):
     assert clean_name(raw)[1]
 
@@ -62,11 +63,13 @@ def test_a_good_document_has_no_problems_and_reports_its_structure(store):
 
 
 @pytest.mark.parametrize("data, fragment", [
-    (b"", "empty"),
-    (b"\x00\x01\x02binary", "binary"),
-    ("سياسة".encode("cp1256"), "UTF-8"),
-    (b"   \n \n", "no text"),
-    (b"x" * (MAX_FILE_BYTES + 1), "larger"),
+    # Explicit ids: pytest would otherwise turn the 512 KB value into the test's name, and on Windows that name is
+    # copied into an environment variable, which cannot exceed 32,767 characters.
+    pytest.param(b"", "empty", id="empty"),
+    pytest.param(b"\x00\x01\x02binary", "binary", id="binary"),
+    pytest.param("سياسة".encode("cp1256"), "UTF-8", id="not-utf8"),
+    pytest.param(b"   \n \n", "no text", id="blank"),
+    pytest.param(b"x" * (MAX_FILE_BYTES + 1), "larger", id="too-large"),
 ])
 def test_unreadable_files_are_refused_with_a_reason(store, data, fragment):
     review = store.review("a.txt", data)
