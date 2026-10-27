@@ -10,13 +10,14 @@ import streamlit as st
 
 from src.agent_loop import InvalidInputError, TerminalState, VeloAgent
 from src.conversation import Conversation
+from ui.runtime import current_kb, load_agent
 from ui.theme import esc, page_header, tile
 from ui.tickets import STATUS_LABELS, format_time, load_tickets, set_status
 
 logger = logging.getLogger("velo.ui")
 DEBUG = os.getenv("VELO_DEBUG") == "1"
 
-HOME, AGENT, INBOX = "home", "agent", "inbox"
+HOME, AGENT, INBOX, KNOWLEDGE = "home", "agent", "inbox", "knowledge"
 
 # (title, description, icon, target page or None for a placeholder)
 MODULES = (
@@ -24,7 +25,8 @@ MODULES = (
      "off to your team when it should.", "bot", AGENT),
     ("Team Inbox", "Escalated conversations with the full context: what was measured, what was "
      "tried and the suggested next step.", "inbox", INBOX),
-    ("Knowledge Management Studio", "Write, review and publish the policies Velo answers from.", "book", None),
+    ("Knowledge Management Studio", "Upload, review and publish the policies Velo answers from.", "book",
+     KNOWLEDGE),
     ("Evaluation Lab", "Run test suites against the agent and compare resolution quality across models.",
      "flask", None),
     ("Analytics & Reports", "Resolution rate, escalation reasons and conversation trends.", "chart", None),
@@ -115,17 +117,6 @@ def render_home() -> None:
 
 # ------------------------------------------------------------- customer page
 
-@st.cache_resource(show_spinner="Starting Velo…")
-def load_agent() -> VeloAgent:
-    from src.model_client import get_model_client
-    from src.rag_engine import RAGEngine
-    from src.settings import load_settings
-
-    provider = getattr(load_settings(), "model_provider", "openai")
-    provider = getattr(provider, "value", provider)
-    return VeloAgent(model=get_model_client(), rag=RAGEngine(provider=provider))
-
-
 def handle_message(agent: VeloAgent, text: str) -> None:
     conv: Conversation = st.session_state.conversation
     messages = st.session_state.messages
@@ -191,7 +182,7 @@ def _render_message(index: int, message: dict, is_last: bool) -> None:
 def render_customer() -> None:
     page_header("Velo Agent", "AI-assisted support, exactly as your customers see it.", "Customer view")
     try:
-        agent = load_agent()
+        agent = load_agent(*current_kb())
     except Exception:
         logger.exception("Agent failed to start")
         st.error("Velo could not start. Check the model settings in your .env file and reload.")

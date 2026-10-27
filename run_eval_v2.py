@@ -37,6 +37,7 @@ from src.eval_metrics import (
     release_decision,
     summarize,
 )
+from src.knowledge import knowledge_version
 from src.retrieval_agent import PROMPT_VERSION
 
 CASES_FILE = Path("evals/cases_v2.jsonl")
@@ -299,6 +300,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cases", type=Path, default=CASES_FILE)
     parser.add_argument("--only", help="a family name or a case id")
     parser.add_argument("--dry-run", action="store_true", help="scripted model, no API needed")
+    parser.add_argument("--with-uploads", action="store_true",
+                        help="evaluate against the built-in manual plus the documents published in the "
+                             "Knowledge Management Studio (default: the built-in manual only)")
     parser.add_argument("--arm", choices=("agent", "rag", "baseline"), default="agent",
                         help="system under test: the full agent, or an ablation arm to compare against")
     parser.add_argument("--min-pass1", type=float, default=0.80)
@@ -328,7 +332,10 @@ def main(argv: list[str] | None = None) -> int:
         provider = resolve_provider()
         model_name = getattr(settings, "model_name", "unknown")
         try:
-            model, rag = get_model_client(), RAGEngine(provider=provider)
+            from src.knowledge import KnowledgeStore
+
+            knowledge = KnowledgeStore().files() if args.with_uploads else "data/technical_docs.txt"
+            model, rag = get_model_client(), RAGEngine(file_path=knowledge, provider=provider)
             rag.retrieve("connectivity check")          # preflight: embeddings reachable
             model.generate([{"role": "user", "content": "ping"}])   # preflight: model reachable
         except Exception as exc:
@@ -353,7 +360,9 @@ def main(argv: list[str] | None = None) -> int:
     meta = {"provider": provider, "model": model_name, "date": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "cases_file": str(args.cases), "total_cases": len(all_cases), "runs": args.runs,
             "dry_run": args.dry_run, "arm": args.arm, "prompt_version": PROMPT_VERSION,
-            "suite": suite_name(args.cases), "cases_sha256": normalized_sha256(args.cases)}
+            "suite": suite_name(args.cases), "cases_sha256": normalized_sha256(args.cases),
+            "with_uploads": args.with_uploads,
+            "kb_sha256": knowledge_version(rag.file_paths) if hasattr(rag, "file_paths") else ""}
     stem = report_stem(provider, model_name, args.arm, meta["suite"])
     REPORTS_DIR.mkdir(exist_ok=True)
 

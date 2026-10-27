@@ -36,6 +36,12 @@ def check_comparable(reports: dict[str, dict]) -> None:
         raise ComparisonError(
             f"Arms were run with different prompt versions: {sorted(versions)}. Re-run the older arm."
         )
+    knowledge = {m["kb_sha256"] for m in metas.values() if m.get("kb_sha256")}
+    if len(knowledge) > 1:
+        raise ComparisonError(
+            "Arms were run against different knowledge bases (a policy was published or changed in between). "
+            "Re-run the older arm."
+        )
     if any(m.get("dry_run") for m in metas.values()):
         raise ComparisonError("A dry run verifies the harness only; it cannot be compared.")
     if any(r["decision"] == "INVALID RUN" for r in reports.values()):

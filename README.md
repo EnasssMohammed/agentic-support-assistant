@@ -77,12 +77,15 @@ Escalation tickets contain the customer message, the conversation transcript, th
 ```text
 velo/
 ├── .github/workflows/ci.yml   # Lint + deterministic unit tests on every push/PR
+├── app.py                     # Streamlit platform: Home, Velo Agent, Team Inbox, Knowledge Management Studio
 ├── data/
-│   └── technical_docs.txt     # Knowledge base (policies, troubleshooting)
-├── docs/
-│   └── 00-problem.md          # Problem statement, PEAS, success contract
+│   └── technical_docs.txt     # Built-in knowledge base (policies, troubleshooting); the other files are sources
+├── docs/                      # 00 problem, 02 evaluation, 03 issue tracking, 04 code map, 05 release decision,
+│                              # 06 threat model, 07 Knowledge Management Studio
 ├── evals/
-│   └── cases.jsonl            # Frozen evaluation set (used for every stage)
+│   ├── cases_v2.jsonl         # Frozen evaluation suite (38 cases); hashes in frozen.json
+│   └── cases_v3_heldout.jsonl # Held-out adversarial suite (17 cases)
+├── knowledge/                 # Studio state: published documents, history, audit log (gitignored)
 ├── reports/
 │   ├── baseline_results.md    # Non-agentic baseline raw output
 │   ├── analysis.md            # Baseline failure analysis
@@ -91,7 +94,8 @@ velo/
 ├── src/
 │   ├── model_client.py        # Provider-agnostic model boundary (Ollama/OpenAI)
 │   ├── schemas.py             # AgentDecision structured output schema
-│   ├── rag_engine.py          # Dual-provider RAG engine
+│   ├── rag_engine.py          # Dual-provider RAG engine; chunks by entry or by heading, over several files
+│   ├── knowledge.py           # Knowledge Management Studio backend: review, publish, rollback, audit
 │   ├── retrieval_agent.py     # Grounds decisions in retrieved policy
 │   ├── diagnostics.py         # Mock router diagnostic tool
 │   ├── escalation.py          # Escalation ticket (context package) tool
@@ -99,11 +103,13 @@ velo/
 │   ├── conversation.py        # Conversation state (messages, diagnostic, ticket)
 │   ├── logging_config.py      # Console + file logging
 │   └── baseline.py            # Non-agentic baseline (for comparison only)
+├── ui/                        # Streamlit pages: home, customer view, inbox, Knowledge Management Studio
 ├── tests/                     # Unit tests (fake model, run in CI) + LLM tests (local only)
 ├── tickets/                   # Generated escalation tickets (gitignored)
 ├── .env.example               # Required environment variables
 ├── LICENSE                    # MIT
-└── run_eval.py                # Runs the full agent against evals/cases.jsonl
+├── run_eval_v2.py             # Evaluation v2: arms, k runs, release gates; compare_arms.py compares the arms
+└── run_eval.py                # Legacy stage-1 evaluation
 ```
 
 ## Setup
@@ -143,6 +149,18 @@ uv run ruff check .
 uv run python run_eval.py
 # -> writes reports/agent_results_<provider>_<model>.md, with an escalation-match summary
 ```
+
+## The Velo platform and the Knowledge Management Studio
+
+```bash
+uv run streamlit run app.py
+```
+
+Home, Velo Agent (the customer view), Team Inbox (escalated tickets) and the **Knowledge Management Studio**, where staff
+upload, write, review, publish, version and audit the policies the agent answers from. Publishing indexes the new
+knowledge base first and undoes itself if that fails. Set `VELO_STUDIO_PIN` in `.env` to protect the page. See
+[docs/07-knowledge-studio.md](docs/07-knowledge-studio.md) for the checks, the limits and how to re-run the evaluation
+against the published documents (`run_eval_v2.py --with-uploads`).
 
 ## Project history
 

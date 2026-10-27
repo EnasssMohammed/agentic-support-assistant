@@ -173,3 +173,20 @@ def test_comparison_refuses_different_prompt_versions_but_tolerates_old_reports(
     new_b["meta"]["prompt_version"] = "3"
     with pytest.raises(compare_arms.ComparisonError, match="prompt versions"):
         compare_arms.render({"rag": new_a, "agent": new_b})
+
+
+def test_comparison_refuses_arms_run_against_different_knowledge_bases():
+    older, newer = _fake_report("rag", 0.5), _fake_report("agent", 0.9)
+    older["meta"]["kb_sha256"], newer["meta"]["kb_sha256"] = "a" * 64, "b" * 64
+    with pytest.raises(compare_arms.ComparisonError, match="knowledge bases"):
+        compare_arms.render({"rag": older, "agent": newer})
+    newer["meta"]["kb_sha256"] = "a" * 64
+    assert "rag" in compare_arms.render({"rag": older, "agent": newer})
+    assert "rag" in compare_arms.render({"rag": _fake_report("rag", 0.5), "agent": newer})   # old report: no field
+
+
+def test_the_dry_run_report_records_which_knowledge_base_it_used(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    run_eval_v2.main(["--dry-run", "--runs", "1", "--cases", str(CASES), "--only", "refund"])
+    meta = json.loads((tmp_path / "reports" / "eval_v2_dry-run_stub.json").read_text(encoding="utf-8"))["meta"]
+    assert meta["with_uploads"] is False and meta["kb_sha256"] == ""
