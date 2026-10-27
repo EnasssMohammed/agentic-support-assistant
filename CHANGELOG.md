@@ -6,6 +6,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Knowledge Management Studio** (Home card and sidebar): upload, write, review, publish, version, restore, delete and audit
+  policy documents. Review blocks bad files, hidden characters and instructions to the assistant, and warns on links,
+  images, authority claims and conflicting rules; publishing indexes first and rolls back on failure; optional
+  `VELO_STUDIO_PIN`. Backend in `src/knowledge.py`, page in `ui/knowledge.py`, notes in `docs/07-knowledge-studio.md`.
+- The knowledge base can be built from several files, and documents with markdown or numbered headings are chunked by
+  section (`split_sections`) instead of fixed-size pieces.
+- `run_eval_v2.py --with-uploads`; reports record `kb_sha256` and `compare_arms.py` refuses to compare different ones.
 - Held-out evaluation suite `evals/cases_v3_heldout.jsonl` (17 adversarial cases: indirect injection, tool-output injection,
   cross-customer isolation, new attack wordings) with harness support (`poison`, `diagnostic_detail`, `side_conversation`),
   per-suite report names, an attack success rate with a 95% upper bound, and `evals/frozen.json` guarding the frozen suite.
@@ -40,6 +47,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Welcome message in the customer chat: Velo introduces itself as an AI assistant and says what it can do.
 
 ### Changed
+- `SPLITTER_VERSION` is `entries-v3`: the index rebuilds once. The built-in manual chunks exactly as before.
 - The customer notice for a model-initiated escalation is deterministic; the model's wording no longer reaches the customer.
 - Prompt rule: requests for information are plain sentences, never numbered (numbering is for policy steps).
 - Policy Rule 3 is enforced in code: a router issue is diagnosed before any guidance, even when the model answers

@@ -27,3 +27,6 @@ approval_requests/
 tickets/
 *.bak
 logs/
+
+# Knowledge Management Studio: published documents, history and audit log (local state)
+knowledge/
