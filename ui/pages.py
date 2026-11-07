@@ -7,7 +7,7 @@ import os
 from collections import Counter
 
 import streamlit as st
-
+from dotenv import load_dotenv
 from src.agent_loop import InvalidInputError, TerminalState, VeloAgent
 from src.conversation import Conversation
 from ui.runtime import current_kb, load_agent
@@ -15,6 +15,7 @@ from ui.theme import esc, page_header, tile
 from ui.tickets import STATUS_LABELS, format_time, load_tickets, set_status
 
 logger = logging.getLogger("velo.ui")
+load_dotenv()
 DEBUG = os.getenv("VELO_DEBUG") == "1"
 
 HOME, AGENT, INBOX, KNOWLEDGE = "home", "agent", "inbox", "knowledge"
