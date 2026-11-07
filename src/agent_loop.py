@@ -118,7 +118,9 @@ class VeloAgent:
         if conversation.escalated:
             return self._already_escalated(conversation, user_message)
 
-        snapshot = (conversation.topic, conversation.issue, conversation.issue_start)
+                snapshot = (
+            conversation.topic, conversation.issue, conversation.issue_start, conversation.diagnostic
+                )
         conversation.add(Role.CUSTOMER, user_message)
 
         if is_instruction_override(user_message):
@@ -414,7 +416,10 @@ class VeloAgent:
         if result.terminal_state == TerminalState.FAILED_SAFELY:
             conversation.drop_last()   # the customer can resend; state stays consistent
             if snapshot is not None:
-                conversation.topic, conversation.issue, conversation.issue_start = snapshot
+                                (
+                    conversation.topic, conversation.issue,
+                    conversation.issue_start, conversation.diagnostic,
+                ) = snapshot
             return result
         conversation.add(Role.AGENT, result.reply_text)
         if result.ticket is not None:
