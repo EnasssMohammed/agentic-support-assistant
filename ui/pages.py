@@ -1,5 +1,4 @@
 """Pages of the Velo platform: Home, Velo Agent (customer view) and Team Inbox."""
-
 from __future__ import annotations
 
 import logging
@@ -7,6 +6,7 @@ import os
 from collections import Counter
 
 import streamlit as st
+from dotenv import load_dotenv
 
 from src.agent_loop import InvalidInputError, TerminalState, VeloAgent
 from src.conversation import Conversation
@@ -15,6 +15,7 @@ from ui.theme import esc, page_header, tile
 from ui.tickets import STATUS_LABELS, format_time, load_tickets, set_status
 
 logger = logging.getLogger("velo.ui")
+load_dotenv()  # so VELO_DEBUG set only in .env is honoured
 DEBUG = os.getenv("VELO_DEBUG") == "1"
 
 HOME, AGENT, INBOX, KNOWLEDGE = "home", "agent", "inbox", "knowledge"
