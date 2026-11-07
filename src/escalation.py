@@ -12,11 +12,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
+from dotenv import load_dotenv
 from pydantic import BaseModel
 
 from src.diagnostics import DiagnosticResult, DiagnosticStatus
 from src.schemas import AgentDecision
 
+load_dotenv()
 TICKETS_DIR = Path(os.getenv("VELO_TICKETS_DIR", "tickets"))
 
 Priority = Literal["normal", "high"]
