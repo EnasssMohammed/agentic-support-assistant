@@ -23,7 +23,7 @@ OLLAMA_EMBEDDING_MODEL = "nomic-embed-text"
 OPENAI_EMBEDDING_MODEL = "text-embedding-3-small"
 CHUNK_SIZE = 300          # fallback splitter only
 CHUNK_OVERLAP = 50
-SPLITTER_VERSION = "entries-v2"   # bump when chunking logic changes, so the index rebuilds
+SPLITTER_VERSION = "entries-v3"   # bump when chunking logic changes, so the index rebuilds
 INDEX_DIR = Path("chroma_langchain")  # gitignored; one sub-folder per provider
 
 
@@ -87,6 +87,111 @@ def split_policy_entries(text: str) -> list[dict]:
     return entries
 
 
+_MD_HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*#*\s*$")
+_NUM_HEADING_RE = re.compile(r"^\d+[.)]\s+\S")
+SECTION_MAX_CHARS = 900
+
+
+def _heading_at(lines: list[str], i: int) -> str | None:
+    """The heading text if line i starts a section, else None.
+
+    A heading is a markdown heading, or a numbered line ("3. Refunds:") that ends with a colon or stands alone
+    between blank lines. Numbered steps inside a list are not headings.
+    """
+    line = lines[i].strip()
+    match = _MD_HEADING_RE.match(line)
+    if match:
+        return match.group(2).strip().rstrip(":\uff1a").strip()
+    if _NUM_HEADING_RE.match(line) and len(line) <= 100:
+        if line.endswith((":", "\uff1a")):
+            return line.rstrip(":\uff1a").strip()
+        previous_blank = i == 0 or not lines[i - 1].strip()
+        following = lines[i + 1].strip() if i + 1 < len(lines) else ""
+        if previous_blank and following and not _NUM_HEADING_RE.match(following):
+            return line
+    return None
+
+
+def _pack(lines: list[str], limit: int) -> list[str]:
+    """Group lines into pieces of at most `limit` characters, cutting only between lines when possible."""
+    pieces: list[str] = []
+    current: list[str] = []
+    size = 0
+
+    def flush() -> None:
+        nonlocal current, size
+        text = "\n".join(current).strip()
+        if text:
+            pieces.append(text)
+        current, size = [], 0
+
+    for line in lines:
+        if len(line) > limit:
+            flush()
+            pieces.extend(RecursiveCharacterTextSplitter(chunk_size=limit, chunk_overlap=80).split_text(line))
+            continue
+        if size + len(line) + 1 > limit and current:
+            flush()
+        current.append(line)
+        size += len(line) + 1
+    flush()
+    return pieces
+
+
+def split_sections(text: str) -> list[dict]:
+    """Split a policy document that uses headings (markdown or numbered) into one chunk per section.
+
+    Each chunk keeps its document title and heading, so a rule is never separated from what it belongs to.
+    A section longer than SECTION_MAX_CHARS is cut between lines into parts that each repeat the heading.
+    Returns [] when the text has no headings, so the caller can fall back to fixed-size chunks.
+    """
+    lines = text.splitlines()
+    title = ""
+    heading = ""
+    body: list[str] = []
+    sections: list[tuple[str, list[str]]] = []
+    seen_heading = False
+
+    def flush() -> None:
+        nonlocal body
+        if "".join(body).strip():
+            sections.append((heading or "Introduction", body))
+        body = []
+
+    for i, raw in enumerate(lines):
+        line = raw.rstrip()
+        md = _MD_HEADING_RE.match(line.strip())
+        if md and len(md.group(1)) == 1 and not title and not seen_heading:
+            title = md.group(2).strip()
+            continue
+        found = _heading_at(lines, i)
+        if found is not None:
+            flush()
+            heading, seen_heading = found, True
+            continue
+        if not title and not seen_heading and line.strip() and len(line.strip()) <= 120:
+            title = line.strip()
+            continue
+        body.append(line)
+    flush()
+    if not seen_heading:
+        return []
+
+    chunks: list[dict] = []
+    for name, lines_in_section in sections:
+        pieces = _pack(lines_in_section, SECTION_MAX_CHARS)
+        for number, piece in enumerate(pieces, 1):
+            head = "\n".join(part for part in (title, name if name != title else "") if part)
+            chunks.append(
+                {
+                    "text": f"{head}\n{piece}".strip(),
+                    "section": name,
+                    "entry": name if len(pieces) == 1 else f"{name} (part {number})",
+                }
+            )
+    return chunks
+
+
 def resolve_provider(provider: str | None = None) -> str:
     """Explicit argument wins; otherwise MODEL_PROVIDER from .env; otherwise ollama.
 
@@ -113,10 +218,14 @@ def _max_distance() -> float | None:
 class RAGEngine:
     def __init__(self, file_path="data/technical_docs.txt", provider: str | None = None):
         """
+        file_path: one knowledge file, or a list of them (the manual plus the documents published in the
+        Knowledge Management Studio).
         provider: 'ollama' (local) or 'openai' (cloud). If omitted, follows the
         MODEL_PROVIDER setting in .env.
         """
-        self.file_path = file_path
+        paths = [file_path] if isinstance(file_path, (str, os.PathLike)) else list(file_path)
+        self.file_paths = [Path(p) for p in paths]
+        self.file_path = str(self.file_paths[0])
         self.provider = resolve_provider(provider)
         self.vector_store = None
         self.embeddings = self._get_embeddings()
@@ -134,7 +243,12 @@ class RAGEngine:
         """Identifies everything the index depends on: the source text, the provider,
         the embedding model and the chunking logic. If any of them changes, the
         stored index is stale and must be rebuilt."""
-        digest = hashlib.sha256(Path(self.file_path).read_bytes())
+        if len(self.file_paths) == 1:
+            digest = hashlib.sha256(self.file_paths[0].read_bytes())      # unchanged, so existing indexes stay valid
+        else:
+            digest = hashlib.sha256()
+            for path in sorted(self.file_paths, key=lambda p: p.name):
+                digest.update(path.name.encode() + b"\0" + path.read_bytes() + b"\0")
         digest.update(
             f"|{self.provider}|{self._embedding_model()}|{SPLITTER_VERSION}"
             f"|{CHUNK_SIZE}|{CHUNK_OVERLAP}".encode()
@@ -142,10 +256,18 @@ class RAGEngine:
         return digest.hexdigest()
 
     def _load_chunks(self) -> list[Document]:
-        docs = TextLoader(self.file_path, encoding="utf-8").load()
-        source_name = Path(self.file_path).name
+        chunks: list[Document] = []
+        for path in sorted(self.file_paths, key=lambda p: p.name):
+            chunks.extend(self._chunks_for(path))
+        return chunks
 
-        entries = split_policy_entries(docs[0].page_content) if docs else []
+    @staticmethod
+    def _chunks_for(path: Path) -> list[Document]:
+        docs = TextLoader(str(path), encoding="utf-8").load()
+        source_name = path.name
+
+        text = docs[0].page_content if docs else ""
+        entries = split_policy_entries(text)
         if entries:
             return [
                 Document(
@@ -159,6 +281,22 @@ class RAGEngine:
                     },
                 )
                 for e in entries
+            ]
+
+        # A document with headings: one chunk per section, so a rule stays with its heading.
+        sections = split_sections(text)
+        if sections:
+            return [
+                Document(
+                    page_content=c["text"],
+                    metadata={
+                        "source": f"{source_name} > {c['entry']}",
+                        "section": c["section"],
+                        "entry": c["entry"],
+                        "topic": policy_topic(c["text"]),
+                    },
+                )
+                for c in sections
             ]
 
         # Unstructured text: fall back to fixed-size chunks.
@@ -177,8 +315,9 @@ class RAGEngine:
         Embedding the knowledge base is the slow part, so it is done once and reused.
         Reusing instead of re-adding also avoids duplicate chunks.
         """
-        if not os.path.exists(self.file_path):
-            raise FileNotFoundError(f"File not found: {self.file_path}")
+        for path in self.file_paths:
+            if not path.exists():
+                raise FileNotFoundError(f"File not found: {path}")
 
         persist_dir = INDEX_DIR / self.provider
         manifest_path = persist_dir / "manifest.json"

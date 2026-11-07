@@ -1,4 +1,4 @@
-"""Velo platform: Home, Velo Agent (customer view) and Team Inbox.
+"""Velo platform: Home, Velo Agent (customer view), Team Inbox and Knowledge Management Studio.
 
 Run:  streamlit run app.py
 Set VELO_DEBUG=1 to show internal error details (never enable in production).
@@ -7,10 +7,12 @@ Set VELO_DEBUG=1 to show internal error details (never enable in production).
 import streamlit as st
 
 from ui import theme
+from ui.knowledge import render_knowledge
 from ui.pages import (
     AGENT,
     HOME,
     INBOX,
+    KNOWLEDGE,
     init_state,
     render_customer,
     render_home,
@@ -29,7 +31,6 @@ init_state()
 theme.inject()
 
 SOON = (
-    "Knowledge Management Studio",
     "Evaluation Lab",
     "Analytics & Reports",
     "Workflows",
@@ -42,6 +43,7 @@ LABELS = {
     HOME: "Home",
     AGENT: "Velo Agent",
     INBOX: f"Team Inbox ({open_tickets})" if open_tickets else "Team Inbox",
+    KNOWLEDGE: "Knowledge Studio",
 }
 
 with st.sidebar:
@@ -54,7 +56,7 @@ with st.sidebar:
     st.markdown('<div class="nav-label">Workspace</div>', unsafe_allow_html=True)
     st.radio(
         "Navigation",
-        (HOME, AGENT, INBOX),
+        (HOME, AGENT, INBOX, KNOWLEDGE),
         key="page",
         label_visibility="collapsed",
         format_func=LABELS.get,
@@ -65,5 +67,5 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
-ROUTES = {HOME: render_home, AGENT: render_customer, INBOX: render_inbox}
+ROUTES = {HOME: render_home, AGENT: render_customer, INBOX: render_inbox, KNOWLEDGE: render_knowledge}
 ROUTES[st.session_state.page]()
