@@ -26,8 +26,9 @@ dev = [
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+addopts = '-m "not requires_llm"'
 markers = [
-    "requires_llm: needs a live Ollama/OpenAI model (slow; excluded from CI)",
+    "requires_llm: needs a live model provider (API key and network); run with -m requires_llm",
 ]
 
 [tool.ruff]
