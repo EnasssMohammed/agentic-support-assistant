@@ -7,6 +7,7 @@ the model says (turn limits, escalation rules, trust in diagnostics) lives here.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 
@@ -25,6 +26,9 @@ from src.intents import (
     customer_confirms_resolution,
     customer_reports_unresolved,
     extract_topic_evidence,
+    is_arabic,
+    is_greeting,
+    is_identity_question,
     is_instruction_override,
     is_vague_issue,
 )
@@ -101,9 +105,12 @@ class VeloAgent:
         model: ModelClient,
         rag: RAGEngine,
         diagnostic_status: DiagnosticStatus | None = None,
+        topic_classifier: Callable[[str], str] | None = None,
     ):
         self.retrieval_agent = RetrievalAgent(model=model, rag=rag)
         self.diagnostic_status = diagnostic_status
+        # Optional fallback for messages whose topic the keywords cannot tell (see src/topic_classifier.py).
+        self.topic_classifier = topic_classifier
 
     # ------------------------------------------------------------------ public
 
@@ -118,7 +125,13 @@ class VeloAgent:
         if conversation.escalated:
             return self._already_escalated(conversation, user_message)
 
-        snapshot = (conversation.topic, conversation.issue, conversation.issue_start)
+        small_talk = self._small_talk(user_message)
+        if small_talk is not None:
+            return small_talk   # stateless: no issue, no history, no attempt counted
+
+        snapshot = (
+            conversation.topic, conversation.issue, conversation.issue_start, conversation.diagnostic
+        )
         conversation.add(Role.CUSTOMER, user_message)
 
         if is_instruction_override(user_message):
@@ -126,7 +139,7 @@ class VeloAgent:
             logger.warning("Instruction-override attempt refused.")
             return self._finish(conversation, self._refuse_override(), snapshot)
 
-        self._track_issue(conversation, user_message)
+        self._track_issue(conversation, user_message, self.topic_classifier)
 
         # Everything below is scoped to the CURRENT issue: its history, its attempts, its topic.
         history = conversation.issue_transcript(exclude_last=True)
@@ -271,12 +284,41 @@ class VeloAgent:
 
             logger.warning("Unhandled action %s; replanning.", decision.action)
 
+        if topic is None:
+            # The issue was never recognised, so the budget went on rejected plans, not on real attempts.
+            # Ask for details; a ticket here would be opened for a message nobody understood.
+            logger.info("Unrecognised issue after %d turns; asking for details.", MAX_TURNS)
+            decision = AgentDecision(
+                action=ActionType.ASK_CLARIFYING_QUESTION,
+                reasoning="The issue type was not recognised; asking for details before any ticket.",
+                requires_escalation=False,
+                response_to_user=responses.ask_for_details(),
+            )
+            return AgentRunResult(TerminalState.AWAITING_CUSTOMER, decision, MAX_TURNS)
+
         logger.warning("Turn budget (%d) exhausted; escalating.", MAX_TURNS)
         return self._escalate(
             conversation, user_message, context, EscalationKind.UNRESOLVED, MAX_TURNS
         )
 
     # ----------------------------------------------------------------- helpers
+
+    @staticmethod
+    def _small_talk(user_message: str) -> AgentRunResult | None:
+        """A greeting or "who are you?" gets a fixed reply. Nothing is stored and the model is not called."""
+        if is_greeting(user_message):
+            text, reason = responses.welcome(is_arabic(user_message)), "Greeting; answered by a fixed reply."
+        elif is_identity_question(user_message):
+            text, reason = responses.about_velo(is_arabic(user_message)), "Identity question; answered by a fixed reply."
+        else:
+            return None
+        decision = AgentDecision(
+            action=ActionType.ASK_CLARIFYING_QUESTION,
+            reasoning=reason,
+            requires_escalation=False,
+            response_to_user=text,
+        )
+        return AgentRunResult(TerminalState.AWAITING_CUSTOMER, decision, turns_used=0)
 
     @staticmethod
     def _refuse_override() -> AgentRunResult:
@@ -414,7 +456,12 @@ class VeloAgent:
         if result.terminal_state == TerminalState.FAILED_SAFELY:
             conversation.drop_last()   # the customer can resend; state stays consistent
             if snapshot is not None:
-                conversation.topic, conversation.issue, conversation.issue_start = snapshot
+                # The diagnostic is restored too: a hard fault recorded just before a failed handoff would
+                # otherwise count as already handled, and the resent message would never escalate.
+                (
+                    conversation.topic, conversation.issue,
+                    conversation.issue_start, conversation.diagnostic,
+                ) = snapshot
             return result
         conversation.add(Role.AGENT, result.reply_text)
         if result.ticket is not None:
@@ -422,7 +469,11 @@ class VeloAgent:
         return result
 
     @staticmethod
-    def _track_issue(conversation: Conversation, message: str) -> None:
+    def _track_issue(
+        conversation: Conversation,
+        message: str,
+        fallback_classifier: Callable[[str], str] | None = None,
+    ) -> None:
         """Remember which issue this conversation is about.
 
         Once an issue is open, a follow-up ("still not working", "fixed") never changes it. A message that
@@ -435,6 +486,13 @@ class VeloAgent:
             return  # "still broken" belongs to the issue already open
         # With no issue open yet, even "I have no internet" is a problem statement, not a follow-up.
         topic = classify_topic(message)
+        if (
+            topic == "other"
+            and fallback_classifier is not None
+            and conversation.topic is None      # an open issue keeps its topic; only a first message is asked
+            and not is_vague_issue(message)     # "help" is answered by asking for details, no model call needed
+        ):
+            topic = fallback_classifier(message)
         if topic == "other":
             if conversation.topic is None and conversation.issue is None:
                 conversation.issue, conversation.issue_start = message, index

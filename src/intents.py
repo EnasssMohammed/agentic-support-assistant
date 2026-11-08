@@ -100,7 +100,7 @@ _TOPICS: dict[str, tuple[tuple[re.Pattern[str], ...], tuple[re.Pattern[str], ...
     "router": (
         _terms(r"\brouter\b", r"\bwi-?fi\b", r"\bmodem\b", r"\binternet\b", r"\bled\b",
                r"\boffline\b", r"\bnetwork\b", r"\bhard[\s_-]?fault\b", r"\bsoftware[\s_-]?glitch\b",
-               "راوتر", "رواتر", "مودم", "عتاد", "انترنت", "إنترنت", "واي فاي", "وايفاي", "لمبة", "منقطع",
+               r"(?<![\u0600-\u06FF])النت(?![\u0600-\u06FF])", "راوتر", "رواتر", "مودم", "عتاد", "انترنت", "إنترنت", "واي فاي", "وايفاي", "لمبة", "منقطع",
                "تقطع", "بطيء", "بطئ", "شبكة"),
         _terms(r"\bconnect", r"\bdiagnostic", "اتصال", "تشخيص"),
     ),
@@ -180,6 +180,62 @@ def is_vague_issue(message: str) -> bool:
     """True when the message gives too little detail to act on."""
     cleaned = " ".join(re.sub(r"[^\w\s]", "", message.lower()).split())
     return cleaned in _VAGUE
+
+
+# ---------------------------------------------------------------- small talk
+# A greeting or "who are you?" is not a support issue. It is answered by a fixed reply and never reaches the
+# model, never opens an issue and never touches the conversation state: otherwise it is glued to the previous
+# issue and the model answers it with that issue's old diagnostic.
+
+def _fold(text: str) -> str:
+    """Lowercase, drop punctuation and diacritics, unify alef forms."""
+    text = normalize(text)
+    for variant in "أإآ":
+        text = text.replace(variant, "ا")
+    return " ".join(re.sub(r"[^\w\s]", " ", text).split())
+
+
+_GREETING_STARTERS = frozenset({
+    "مرحبا", "اهلا", "اهلين", "هلا", "هاي", "السلام", "وعليكم", "صباح", "مساء", "حالك", "حالكم",
+    "hi", "hello", "hey", "morning", "evening", "afternoon", "greetings", "salam", "how",
+})
+_GREETING_FILLER = frozenset({
+    "عليكم", "ورحمة", "الله", "وبركاته", "الخير", "النور", "كيف", "وسهلا", "بك", "بكم", "يا", "بوت",
+    "good", "are", "you", "there", "doing", "today", "again",
+})
+_MAX_GREETING_WORDS = 8
+
+
+def is_greeting(message: str) -> bool:
+    """True only when the whole message is a greeting ("مرحبا", "السلام عليكم", "hello there")."""
+    words = _fold(message).split()
+    if not words or len(words) > _MAX_GREETING_WORDS:
+        return False
+    allowed = _GREETING_STARTERS | _GREETING_FILLER
+    return all(w in allowed for w in words) and any(w in _GREETING_STARTERS for w in words)
+
+
+_IDENTITY_RE = _compile(
+    r"^(?:من|مين) (?:انت|انتي|انتم|حضرتك)$",
+    r"^(?:ما|ايش|وش|شو) (?:اسمك|اسمكم)$",
+    r"^(?:هل )?(?:انت|انتي) (?:روبوت|بوت|انسان|شخص|بشر|ذكاء اصطناعي)$",
+    r"^(?:ماذا|ايش|وش|شو) (?:تفعل|تقدر تسوي|تستطيع ان تفعل|تقدر تسوي لي|تسوي)$",
+    r"^كيف (?:تساعدني|تقدر تساعدني|يمكنك مساعدتي)$",
+    r"^(?:who|what) are you$",
+    r"^what(?: is|s) your name$",
+    r"^are you (?:a )?(?:bot|human|robot|real person|ai)$",
+    r"^what (?:can|do) you (?:do|help (?:me )?with)$",
+    r"^how can you help(?: me)?$",
+)
+
+
+def is_identity_question(message: str) -> bool:
+    """True when the whole message asks who or what the assistant is, or what it can do."""
+    return bool(_IDENTITY_RE.search(_fold(message)))
+
+
+def is_arabic(message: str) -> bool:
+    return bool(re.search(r"[\u0600-\u06FF]", message))
 
 
 @dataclass(frozen=True)
