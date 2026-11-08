@@ -1,13 +1,13 @@
-
 """Persistent human approval requests for protected actions."""
 
 import json
+import os
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-APPROVALS_DIR = Path("approval_requests")
+APPROVALS_DIR = Path(os.getenv("VELO_APPROVALS_DIR", "approval_requests"))
 
 
 class ApprovalError(RuntimeError):
@@ -46,6 +46,7 @@ def create_approval_request(
         "employee_id": None,
         "decided_at": None,
         "rejection_reason": None,
+        "executed_at": None,
     }
 
     APPROVALS_DIR.mkdir(parents=True, exist_ok=True)
@@ -62,6 +63,18 @@ def get_approval_request(request_id: str) -> dict[str, Any]:
     if not path.is_file():
         raise FileNotFoundError(f"Approval request not found: {request_id}")
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def list_approval_requests(status: str | None = None) -> list[dict[str, Any]]:
+    """All requests on disk, oldest first, optionally filtered by status."""
+    if not APPROVALS_DIR.is_dir():
+        return []
+    requests = [
+        json.loads(p.read_text(encoding="utf-8")) for p in APPROVALS_DIR.glob("*.json")
+    ]
+    if status:
+        requests = [r for r in requests if r["status"] == status]
+    return sorted(requests, key=lambda r: r["created_at"])
 
 
 def _save(request: dict[str, Any]) -> dict[str, Any]:
@@ -117,3 +130,11 @@ def require_approval(request_id: str) -> dict[str, Any]:
             f"Protected action blocked: approval status is {request['status']}."
         )
     return request
+
+
+def mark_executed(request_id: str) -> dict[str, Any]:
+    """Consume an approval so it authorizes exactly one execution (no replay)."""
+    request = require_approval(request_id)
+    request["status"] = "Executed"
+    request["executed_at"] = _now()
+    return _save(request)
