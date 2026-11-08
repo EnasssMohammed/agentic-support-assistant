@@ -40,8 +40,12 @@ def load_rag(kb_version: str, files: tuple[str, ...]):
 @st.cache_resource(show_spinner="Starting Velo…")
 def load_agent(kb_version: str, files: tuple[str, ...]) -> VeloAgent:
     from src.model_client import get_model_client
+    from src.topic_classifier import model_topic_classifier
 
-    return VeloAgent(model=get_model_client(), rag=load_rag(kb_version, files))
+    model = get_model_client()
+    return VeloAgent(
+        model=model, rag=load_rag(kb_version, files), topic_classifier=model_topic_classifier(model)
+    )
 
 
 def clear_caches() -> None:
