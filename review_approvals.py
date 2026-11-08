@@ -22,35 +22,60 @@ def _print(data) -> None:
     print(json.dumps(data, indent=2, ensure_ascii=False))
 
 
-def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    sub = p.add_subparsers(dest="cmd", required=True)
-    s = sub.add_parser("request"); s.add_argument("ticket_id")
-    s = sub.add_parser("list"); s.add_argument("--status")
-    s = sub.add_parser("show"); s.add_argument("request_id")
-    s = sub.add_parser("approve"); s.add_argument("request_id"); s.add_argument("--employee", required=True)
-    s = sub.add_parser("reject"); s.add_argument("request_id"); s.add_argument("--employee", required=True); s.add_argument("--reason", required=True)
-    s = sub.add_parser("execute"); s.add_argument("request_id")
-    a = p.parse_args(argv)
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawTextHelpFormatter
+    )
+    sub = parser.add_subparsers(dest="cmd", required=True)
 
+    request = sub.add_parser("request")
+    request.add_argument("ticket_id")
+
+    listing = sub.add_parser("list")
+    listing.add_argument("--status")
+
+    show = sub.add_parser("show")
+    show.add_argument("request_id")
+
+    approve = sub.add_parser("approve")
+    approve.add_argument("request_id")
+    approve.add_argument("--employee", required=True)
+
+    reject = sub.add_parser("reject")
+    reject.add_argument("request_id")
+    reject.add_argument("--employee", required=True)
+    reject.add_argument("--reason", required=True)
+
+    execute = sub.add_parser("execute")
+    execute.add_argument("request_id")
+    return parser
+
+
+def _request_from_ticket(ticket_id: str) -> int:
+    path = Path(TICKETS_DIR) / f"{ticket_id}.json"
+    if not path.is_file():
+        print(f"Ticket not found: {path}", file=sys.stderr)
+        return 1
+    ticket = json.loads(path.read_text(encoding="utf-8"))
+    _print(propose_dispatch(ticket_id, ticket.get("suggested_human_action", "")))
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _build_parser().parse_args(argv)
     try:
-        if a.cmd == "request":
-            path = Path(TICKETS_DIR) / f"{a.ticket_id}.json"
-            if not path.is_file():
-                print(f"Ticket not found: {path}", file=sys.stderr)
-                return 1
-            ticket = json.loads(path.read_text(encoding="utf-8"))
-            _print(propose_dispatch(a.ticket_id, ticket.get("suggested_human_action", "")))
-        elif a.cmd == "list":
-            _print(approval.list_approval_requests(a.status))
-        elif a.cmd == "show":
-            _print(approval.get_approval_request(a.request_id))
-        elif a.cmd == "approve":
-            _print(approval.approve_request(a.request_id, a.employee))
-        elif a.cmd == "reject":
-            _print(approval.reject_request(a.request_id, a.employee, a.reason))
-        elif a.cmd == "execute":
-            _print(dispatch_maintenance(a.request_id))
+        if args.cmd == "request":
+            return _request_from_ticket(args.ticket_id)
+        if args.cmd == "list":
+            _print(approval.list_approval_requests(args.status))
+        elif args.cmd == "show":
+            _print(approval.get_approval_request(args.request_id))
+        elif args.cmd == "approve":
+            _print(approval.approve_request(args.request_id, args.employee))
+        elif args.cmd == "reject":
+            _print(approval.reject_request(args.request_id, args.employee, args.reason))
+        elif args.cmd == "execute":
+            _print(dispatch_maintenance(args.request_id))
     except (approval.ApprovalError, FileNotFoundError, ValueError) as exc:
         print(f"BLOCKED: {exc}", file=sys.stderr)
         return 1
