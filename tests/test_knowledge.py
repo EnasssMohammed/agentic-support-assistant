@@ -267,17 +267,19 @@ def test_the_studio_pin(monkeypatch):
     assert pin_required() and check_pin("4821") and not check_pin("4822") and not check_pin("")
 
 
-def test_the_real_policy_files_pass_review_and_the_overlaps_are_called_out():
-    """The three Arabic policy files in data/ are what the Studio is for. They must be publishable, and their
-    rules that collide with the built-in manual must be flagged."""
+def test_the_real_policy_files_pass_review_and_do_not_collide_with_the_manual():
+    """The three Arabic policy files in data/ are what the Studio is for. They must be publishable, and they must
+    agree with the built-in manual: no rule label defined twice, and no promise the agent cannot keep."""
     root = Path(__file__).resolve().parent.parent / "data"
     store = KnowledgeStore(Path("/nonexistent-studio-root"), builtin=root / "technical_docs.txt")
-    escalation = store.review("Escalation_Rules_And_Limits.md", (root / "Escalation_Rules_And_Limits.md").read_bytes())
-    assert escalation.ok and escalation.structure == "sections"
-    assert any('"Rule #1"' in w for w in escalation.warnings) and any('"Rule #2"' in w for w in escalation.warnings)
-    for name in ("Account_And_Billing_Policy.txt", "Network_Troubleshooting_Guide.md"):
-        review = store.review(name, (root / name).read_bytes())
+    for name in ("Account_And_Billing_Policy.txt", "Escalation_Rules_And_Limits.md",
+                 "Network_Troubleshooting_Guide.md"):
+        text = (root / name).read_text(encoding="utf-8")
+        review = store.review(name, text.encode("utf-8"))
         assert review.ok and review.structure == "sections", name
+        assert not any("Rule #" in w for w in review.warnings), (name, review.warnings)
+        for phrase in ("OTP", "48 ساعة", "TR-069", "Port Soft Reset"):
+            assert phrase not in text, (name, phrase)
 
 
 # ------------------------------------------------------------------------------ the held-out poisons meet the review

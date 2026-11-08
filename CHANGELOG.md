@@ -5,6 +5,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- The three sample policy files in `data/` no longer contradict the built-in manual (red-LED cause, rule labels, reset channel,
+  replacement promise, tools Velo does not have). The manual and the evaluation reports are unchanged.
+
 ## [1.3.0] - 2026-11-08
 
 ### Added

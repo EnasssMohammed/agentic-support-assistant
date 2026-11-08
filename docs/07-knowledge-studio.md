@@ -58,18 +58,14 @@ the activity log but is not verified. Do not expose the app beyond a supervised 
 
 ## Write only what Velo can do
 
-The agent will repeat what a policy says. The three policy files in `data/` describe human and operational processes, and
-some of them disagree with what the agent actually does:
+The agent will repeat what a policy says. The three policy files in `data/` were rewritten so that they agree with the
+built-in manual: a hard fault and three unresolved turns escalate, the red-LED sequence starts with a restart, a locked
+account gets a reset link by email, and a hardware replacement is decided by the support team, never promised by Velo.
+`tests/test_knowledge.py` fails if a rule label is defined twice or if a promise Velo cannot keep (an OTP reset, a 48-hour
+replacement, a port reset, a credential rewrite) comes back.
 
-| In the document | In the agent |
-|---|---|
-| `Escalation_Rules_And_Limits.md`: Rule #2 escalates after more than two attempts | The code escalates after three agent replies (the built-in manual says three turns) |
-| Same file: Rule #3 escalates when the customer has an open ticket from the last 24 hours | Not implemented |
-| `Network_Troubleshooting_Guide.md`: send a "Port Soft Reset" from the server | The agent has no such tool |
-| `Account_And_Billing_Policy.txt`: a replacement device is delivered within 48 hours | The agent can only create a ticket; a person arranges it |
-
-The review flags the Rule #1 and Rule #2 overlaps. For the rest, describe the process as handled by "the support team"
-rather than as something Velo does, or the agent will promise it.
+The review still flags a rule label (`Rule #n`) that two documents define differently. When writing a new policy,
+describe a process that needs a tool Velo does not have as handled by "the support team", or the agent will promise it.
 
 ## Evaluation after a change
 
