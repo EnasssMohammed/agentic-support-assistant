@@ -2,7 +2,12 @@ import json
 
 import pytest
 
-from src.approval import ApprovalError, approve_request, get_approval_request, reject_request
+from src.approval import (
+    ApprovalError,
+    approve_request,
+    get_approval_request,
+    reject_request,
+)
 from src.protected_actions import dispatch_maintenance, propose_dispatch
 
 
