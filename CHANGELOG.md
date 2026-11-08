@@ -5,7 +5,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-08
+
 ### Added
+- `docs/08-responsible-design.md`: over-trust and under-trust, human oversight (including what happens if the human does
+  nothing), the audit-trail gap, the framework choice and the supply-chain note.
 - **Knowledge Management Studio** (Home card and sidebar): upload, write, review, publish, version, restore, delete and audit
   policy documents. Review blocks bad files, hidden characters and instructions to the assistant, and warns on links,
   images, authority claims and conflicting rules; publishing indexes first and rolls back on failure; optional
@@ -190,7 +194,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   client (Ollama / OpenAI) with structured output, and the `AgentDecision` schema.
 - Removed a duplicate `rag_enginge.py`.
 
-[Unreleased]: https://github.com/EnasssMohammed/agentic-support-assistant/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/EnasssMohammed/agentic-support-assistant/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/EnasssMohammed/agentic-support-assistant/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/EnasssMohammed/agentic-support-assistant/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/EnasssMohammed/agentic-support-assistant/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/EnasssMohammed/agentic-support-assistant/compare/v1.0.0...v1.0.1
