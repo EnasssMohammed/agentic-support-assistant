@@ -90,7 +90,8 @@ velo/
 │   ├── 05-release-decision.md # Release decision
 │   ├── 06-threat-model.md     # Threat model, tool inventory, residual risk
 │   ├── 07-knowledge-studio.md # Knowledge Management Studio
-│   └── 08-responsible-design.md # Over/under-trust, human oversight, framework and supply-chain choices
+│   ├── 08-responsible-design.md # Over/under-trust, human oversight, framework and supply-chain choices
+│   └── 09-knowledge-base-gaps.md # Known gaps in the manual and conflicts with the sample policy files
 ├── evals/
 │   ├── cases.jsonl            # Legacy stage-1 cases (6)
 │   ├── cases_v2.jsonl         # Frozen evaluation suite (38 cases); hashes in frozen.json

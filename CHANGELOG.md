@@ -8,6 +8,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [1.3.0] - 2026-11-08
 
 ### Added
+- `docs/09-knowledge-base-gaps.md`: known gaps in the built-in manual and its conflicts with the sample policy files
+  (the manual itself is unchanged, so the evaluation reports still apply).
 - `docs/08-responsible-design.md`: over-trust and under-trust, human oversight (including what happens if the human does
   nothing), the audit-trail gap, the framework choice and the supply-chain note.
 - **Knowledge Management Studio** (Home card and sidebar): upload, write, review, publish, version, restore, delete and audit
