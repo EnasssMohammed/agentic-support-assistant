@@ -41,6 +41,36 @@ def cannot_share_instructions() -> str:
     )
 
 
+def welcome(arabic: bool = True) -> str:
+    if arabic:
+        return (
+            "أهلاً بك في Velo. أساعدك في مشاكل الإنترنت والراوتر، وفي الحساب وتسجيل الدخول، "
+            "وفي الفواتير والاسترجاع.\n\n"
+            "اكتب لي مشكلتك وسأبدأ معك."
+        )
+    return (
+        "Welcome to Velo. I help with internet and router problems, account and login issues, "
+        "and billing or refunds.\n\n"
+        "Tell me what is wrong and I will start from there."
+    )
+
+
+def about_velo(arabic: bool = True) -> str:
+    if arabic:
+        return (
+            "أنا مساعد الدعم الفني في Velo، وهو برنامج آلي وليس موظفاً بشرياً. "
+            "أساعدك في مشاكل الإنترنت والراوتر والحساب والفواتير، "
+            "وأحوّل حالتك إلى فريق الدعم عندما يلزم ذلك.\n\n"
+            "بماذا أساعدك؟"
+        )
+    return (
+        "I am Velo's support assistant, an automated program rather than a human agent. "
+        "I help with internet and router problems, accounts and billing, "
+        "and I hand your case to the support team when needed.\n\n"
+        "What can I help you with?"
+    )
+
+
 def ask_for_details() -> str:
     return (
         "لأساعدك بسرعة أحتاج أن أعرف نوع المشكلة. صفها بكلماتك، أو اختر الأقرب:\n\n"
