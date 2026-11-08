@@ -30,3 +30,9 @@ logs/
 
 # Knowledge Management Studio: published documents, history and audit log (local state)
 knowledge/
+
+approval_requests/
+dispatches/
+
+approval_requests/
+dispatches/
