@@ -11,11 +11,13 @@ from src.agent_loop import InvalidInputError, VeloAgent
 from src.conversation import Conversation
 from src.model_client import get_model_client
 from src.rag_engine import RAGEngine
+from src.topic_classifier import model_topic_classifier
 
 
 def main(agent: VeloAgent | None = None, input_fn: Callable[[str], str] = input) -> None:
     if agent is None:
-        agent = VeloAgent(model=get_model_client(), rag=RAGEngine())
+        model = get_model_client()
+        agent = VeloAgent(model=model, rag=RAGEngine(), topic_classifier=model_topic_classifier(model))
     print("Velo support agent (/new = new conversation, /quit = exit)\n")
     conversation = Conversation()
 
