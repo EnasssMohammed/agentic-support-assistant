@@ -46,6 +46,9 @@ ui/pages.py ──► src/agent_loop.py (the brain)
 | `approval.py` | Human approval requests for protected actions. The request is created, but nothing waits on it yet | Writes to `approval_requests/` |
 | `logging_config.py` | Event log to the screen and to `logs/velo.log` | Used by everything |
 | `baseline.py` | The simple agent (one call, no tools). Kept only for the historical comparison | Stage 1 |
+| `topic_classifier.py` | Model-based fallback that names the topic when the keyword rules in `intents.py` find none | Used by `agent_loop`, wired in `ui/runtime.py` and `main.py` |
+| `knowledge.py` | Knowledge Management Studio backend: review, publish, version, roll back and audit policy documents | Used by `ui/knowledge.py`; feeds `rag_engine` |
+| `arms.py` | The three comparison arms of evaluation v2: single-call baseline, retrieval-only, full agent | Used by `run_eval_v2.py` |
 
 ## 2) The interfaces
 
@@ -55,6 +58,8 @@ ui/pages.py ──► src/agent_loop.py (the brain)
 | `ui/pages.py` | The pages: Home, Velo Agent (customer), Team Inbox (staff) |
 | `ui/theme.py` | The design (CSS) and icons |
 | `ui/tickets.py` | Reads the files in `tickets/` and keeps each ticket's status (new, in progress, closed) |
+| `ui/knowledge.py` | The Knowledge Management Studio page (see `docs/07-knowledge-studio.md`) |
+| `ui/runtime.py` | Builds the agent once for the web app (model, retrieval, topic classifier) |
 | `main.py` | Command-line interface for quick tries |
 | `.streamlit/config.toml` | Streamlit colours (optional) |
 
@@ -67,6 +72,7 @@ The agent writes the ticket to `tickets/` and the team reads the same files, so 
 | `run_eval_v2.py` | The current runner: repeats each case k times and writes the report and the release decision |
 | `src/eval_metrics.py` | The calculations: pass@k, case checks, gates and the decision |
 | `evals/cases_v2.jsonl` | 38 frozen cases in ten families, 8 of them adversarial |
+| `evals/cases_v3_heldout.jsonl` | 17 held-out adversarial cases written after the code was frozen; `evals/frozen.json` guards the frozen suites |
 | `run_retrieval_check.py` | Measures retrieval accuracy in Arabic and English (optional) |
 | `run_eval.py` and `evals/cases.jsonl` | The old evaluation (7 cases), kept for the historical comparison |
 | `reports/` | Reports of each run (release evidence) |
@@ -75,7 +81,7 @@ The agent writes the ticket to `tickets/` and the team reads the same files, so 
 
 | File | Purpose |
 |---|---|
-| `data/technical_docs.txt` | The only knowledge source. Editing it rebuilds the index automatically |
+| `data/` | The knowledge sources: `technical_docs.txt` plus the policy and troubleshooting files. Editing a file rebuilds the index automatically; the Studio publishes new documents here |
 | `.env` and `.env.example` | Secrets and options: `MODEL_PROVIDER`, `MODEL_NAME`, `OPENAI_API_KEY`. The first is never pushed to Git |
 | `pyproject.toml` and `uv.lock` | Dependencies with pinned versions |
 | `chroma_langchain/`, `tickets/`, `approval_requests/`, `logs/` | Generated at run time, never pushed to Git |
@@ -92,6 +98,9 @@ The agent writes the ticket to `tickets/` and the team reads the same files, so 
 | `test_rag_index_cache.py`, `test_rag_provider.py`, `test_rag_splitting.py` | The index, the provider and how the knowledge base is split |
 | `test_eval_metrics.py`, `test_run_eval.py` | The evaluation calculations (new and old) |
 | `test_settings.py` | Settings validation |
+| `test_arms.py`, `test_heldout_suite.py`, `test_instruction_override.py` | The comparison arms, the frozen-suite guard and the injection guard |
+| `test_knowledge.py`, `test_studio_ui.py` | The Studio backend (review, publish, rollback, audit) and its page |
+| `test_topic_fallback.py`, `test_small_talk.py`, `test_structured_output.py`, `test_baseline.py`, `test_retrieval_agent.py` | Topic fallback, small talk, structured output, the baseline and grounding |
 
 Tests marked `requires_llm` need a live model, so CI leaves them out.
 
@@ -101,10 +110,9 @@ Tests marked `requires_llm` need a live model, so CI leaves them out.
 |---|---|
 | `README.md` | The entry point |
 | `CHANGELOG.md` | What changed in each release |
-| `docs/` | One document per step: the problem, evaluation, issue tracking, and this map |
+| `docs/` | One document per step: the problem, evaluation, issue tracking, this map, the release decision, the threat model, the Studio and responsible design |
 | `.github/workflows/ci.yml` | Runs the lint and the tests on every push |
 | `.github/dependabot.yml` | Dependency updates |
-| `update_old_tests.py` | Temporary: used once, safe to delete |
 
 ## Three rules that explain most of the code
 

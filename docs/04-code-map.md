@@ -44,6 +44,9 @@ ui/pages.py ──► src/agent_loop.py (الدماغ)
 | `escalation.py` | ينشئ ملف التذكرة JSON: المشكلة، الأدلة، ما قيل للعميل، والخطوة التالية للموظف | يكتب في `tickets/` |
 | `approval.py` | طلبات موافقة بشرية للإجراءات المحمية. يُنشأ الطلب لكن لا شيء يتوقف عليه بعد | يكتب في `approval_requests/` |
 | `logging_config.py` | سجل الأحداث للشاشة ولملف `logs/velo.log` | يستخدمه الجميع |
+| `topic_classifier.py` | احتياطي يعتمد النموذج لتسمية الموضوع حين لا تجد قواعد الكلمات في `intents.py` شيئاً | يستخدمه `agent_loop`، ويُربط في `ui/runtime.py` و`main.py` |
+| `knowledge.py` | خلفية استوديو إدارة المعرفة: مراجعة ونشر وإصدارات وتراجع وتدقيق لوثائق السياسات | يستخدمه `ui/knowledge.py` ويغذي `rag_engine` |
+| `arms.py` | الأذرع الثلاثة لتقييم v2: خط الأساس بنداء واحد، الاسترجاع فقط، الوكيل الكامل | يستخدمه `run_eval_v2.py` |
 | `baseline.py` | الوكيل البسيط (استدعاء واحد بلا أدوات). للمقارنة التاريخية فقط | المرحلة 1 |
 
 ## 2) الواجهات
@@ -53,6 +56,8 @@ ui/pages.py ──► src/agent_loop.py (الدماغ)
 | `app.py` | المدخل: الشريط الجانبي والتنقل بين الصفحات |
 | `ui/pages.py` | الصفحات: الرئيسية، Velo Agent (العميل)، Team Inbox (الفريق) |
 | `ui/theme.py` | التصميم (CSS) والأيقونات |
+| `ui/knowledge.py` | صفحة استوديو إدارة المعرفة (انظر `docs/07-knowledge-studio.md`) |
+| `ui/runtime.py` | يبني الوكيل مرة واحدة لتطبيق الويب (النموذج، الاسترجاع، مصنف الموضوع) |
 | `ui/tickets.py` | يقرأ ملفات `tickets/` ويحفظ حالة كل تذكرة (جديدة، قيد المعالجة، مغلقة) |
 | `main.py` | واجهة سطر الأوامر للتجربة السريعة |
 | `.streamlit/config.toml` | ألوان Streamlit (اختياري) |
@@ -66,6 +71,7 @@ ui/pages.py ──► src/agent_loop.py (الدماغ)
 | `run_eval_v2.py` | المشغّل الحالي: يكرر كل حالة k مرة ويكتب التقرير وقرار الإصدار |
 | `src/eval_metrics.py` | المنطق الحسابي: pass@k، فحوص الحالات، البوابات، والقرار |
 | `evals/cases_v2.jsonl` | 38 حالة ثابتة في عشر عائلات، منها 8 خصومية |
+| `evals/cases_v3_heldout.jsonl` | 17 حالة خصومية محجوزة كُتبت بعد تجميد الكود؛ و`evals/frozen.json` يحرس المجموعات المجمّدة |
 | `run_retrieval_check.py` | يقيس دقة الاسترجاع بالعربية والإنجليزية (اختياري) |
 | `run_eval.py` و`evals/cases.jsonl` | التقييم القديم (7 حالات) للمقارنة التاريخية |
 | `reports/` | تقارير التشغيلات (دليل الإصدار) |
@@ -74,7 +80,7 @@ ui/pages.py ──► src/agent_loop.py (الدماغ)
 
 | الملف | غرضه |
 |---|---|
-| `data/technical_docs.txt` | مصدر المعرفة الوحيد. تعديله يعيد بناء الفهرس تلقائياً |
+| `data/` | مصادر المعرفة: `technical_docs.txt` وملفات السياسات واستكشاف الأعطال. تعديل أي ملف يعيد بناء الفهرس تلقائياً، والاستوديو ينشر الوثائق الجديدة هنا |
 | `.env` و`.env.example` | الأسرار والخيارات: `MODEL_PROVIDER` و`MODEL_NAME` و`OPENAI_API_KEY`. الأول لا يُرفع إلى Git |
 | `pyproject.toml` و`uv.lock` | التبعيات بإصدارات مثبتة |
 | `chroma_langchain/` و`tickets/` و`approval_requests/` و`logs/` | مولَّدة أثناء التشغيل، ولا تُرفع إلى Git |
@@ -91,6 +97,9 @@ ui/pages.py ──► src/agent_loop.py (الدماغ)
 | `test_rag_index_cache.py` و`test_rag_provider.py` و`test_rag_splitting.py` | الفهرس، والمزود، وتقسيم القاعدة |
 | `test_eval_metrics.py` و`test_run_eval.py` | حساب التقييم (الجديد والقديم) |
 | `test_settings.py` | التحقق من الإعدادات |
+| `test_arms.py` و`test_heldout_suite.py` و`test_instruction_override.py` | الأذرع، وحارس المجموعة المجمّدة، وحارس الحقن |
+| `test_knowledge.py` و`test_studio_ui.py` | خلفية الاستوديو (مراجعة، نشر، تراجع، تدقيق) وصفحته |
+| `test_topic_fallback.py` و`test_small_talk.py` و`test_structured_output.py` و`test_baseline.py` و`test_retrieval_agent.py` | الاحتياط للموضوع، والمحادثة العابرة، والمخرجات المنظمة، وخط الأساس، والتأسيس على السياسة |
 
 الاختبارات المعلَّمة `requires_llm` تحتاج نموذجاً حياً، فتُستبعد من CI.
 
@@ -103,7 +112,6 @@ ui/pages.py ──► src/agent_loop.py (الدماغ)
 | `docs/` | وثيقة لكل خطوة: المشكلة، التقييم، تتبع المشكلة، وهذه الخريطة |
 | `.github/workflows/ci.yml` | يشغّل الفحص والاختبارات عند كل دفع |
 | `.github/dependabot.yml` | تحديثات التبعيات |
-| `update_old_tests.py` | مؤقت، استُعمل مرة واحدة ويمكن حذفه |
 
 ## ثلاث قواعد تفسر معظم الكود
 

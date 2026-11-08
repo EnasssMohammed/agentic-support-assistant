@@ -17,7 +17,7 @@ Date: 2026-10-25. Model: `gpt-5-nano-2025-08-07` (OpenAI). Prompt version: 2. Su
 - Every blocking gate passes for the agent: no unexpected or missing tickets, diagnostic at most once, router issues
   diagnosed before guidance, no unsupported or leaked content, no unhandled errors, adversarial suite 100% in every run.
 - The only failing gate is the p95 latency budget (30 s). It is not blocking.
-- 177 offline unit tests pass in CI (`uv run pytest -m "not requires_llm"`).
+- 177 offline unit tests passed in CI when this decision was written (305 pass after the later work: threat model, held-out suite, Knowledge Management Studio) (`uv run pytest -m "not requires_llm"`).
 - `baseline` and `rag` are comparison arms, never release candidates. See `02-evaluation-v2.md` for the per-family
   table and for the three defects found and fixed on the way (`x03`, `n01`, `n02`).
 

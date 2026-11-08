@@ -61,12 +61,14 @@ def test_a_good_document_has_no_problems_and_reports_its_structure(store):
     assert store.review("manual.md", STRUCTURED.encode()).structure == "entries"
 
 
+# Explicit ids: pytest otherwise builds the test id from the 512 KB value, and on Windows that id is copied into the
+# PYTEST_CURRENT_TEST environment variable, which is limited to 32,767 characters.
 @pytest.mark.parametrize("data, fragment", [
-    (b"", "empty"),
-    (b"\x00\x01\x02binary", "binary"),
-    ("سياسة".encode("cp1256"), "UTF-8"),
-    (b"   \n \n", "no text"),
-    (b"x" * (MAX_FILE_BYTES + 1), "larger"),
+    pytest.param(b"", "empty", id="empty"),
+    pytest.param(b"\x00\x01\x02binary", "binary", id="binary"),
+    pytest.param("سياسة".encode("cp1256"), "UTF-8", id="not-utf8"),
+    pytest.param(b"   \n \n", "no text", id="blank"),
+    pytest.param(b"x" * (MAX_FILE_BYTES + 1), "larger", id="oversize"),
 ])
 def test_unreadable_files_are_refused_with_a_reason(store, data, fragment):
     review = store.review("a.txt", data)

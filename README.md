@@ -76,39 +76,56 @@ Escalation tickets contain the customer message, the conversation transcript, th
 
 ```text
 velo/
-├── .github/workflows/ci.yml   # Lint + deterministic unit tests on every push/PR
+├── .github/
+│   ├── workflows/ci.yml       # Lint + deterministic unit tests on every push/PR
+│   └── dependabot.yml         # Weekly dependency updates (uv + GitHub Actions)
 ├── app.py                     # Streamlit platform: Home, Velo Agent, Team Inbox, Knowledge Management Studio
-├── data/
-│   └── technical_docs.txt     # Built-in knowledge base (policies, troubleshooting); the other files are sources
-├── docs/                      # 00 problem, 02 evaluation, 03 issue tracking, 04 code map, 05 release decision,
-│                              # 06 threat model, 07 Knowledge Management Studio
+├── main.py                    # Multi-turn command-line interface
+├── data/                      # Knowledge base sources (policies, troubleshooting); technical_docs.txt is the core file
+├── docs/
+│   ├── 00-problem.md          # Problem statement, PEAS, success contract
+│   ├── 02-evaluation-v2.md    # Evaluation v2: arms, k runs, release gates
+│   ├── 03-issue-tracking.md   # Issue tracking
+│   ├── 04-code-map.md / .en.md  # Every file and how they relate (Arabic / English)
+│   ├── 05-release-decision.md # Release decision
+│   ├── 06-threat-model.md     # Threat model, tool inventory, residual risk
+│   ├── 07-knowledge-studio.md # Knowledge Management Studio
+│   ├── 08-responsible-design.md # Over/under-trust, human oversight, framework and supply-chain choices
+│   └── 09-knowledge-base-gaps.md # Known gaps in the manual and conflicts with the sample policy files
 ├── evals/
+│   ├── cases.jsonl            # Legacy stage-1 cases (6)
 │   ├── cases_v2.jsonl         # Frozen evaluation suite (38 cases); hashes in frozen.json
 │   └── cases_v3_heldout.jsonl # Held-out adversarial suite (17 cases)
 ├── knowledge/                 # Studio state: published documents, history, audit log (gitignored)
-├── reports/
-│   ├── baseline_results.md    # Non-agentic baseline raw output
-│   ├── analysis.md            # Baseline failure analysis
-│   ├── agent_results.md       # Full agent raw output
-│   └── final_evaluation.md    # Baseline vs. agent comparison + limitations
+├── reports/                   # Baseline, agent and v2 evaluation reports (final_evaluation.md is the summary)
 ├── src/
+│   ├── agent_loop.py          # Bounded decide → diagnose → decide loop, per conversation; policy rules in code
+│   ├── conversation.py        # Conversation state (messages, diagnostic, ticket, topic)
+│   ├── intents.py             # Deterministic intent / topic / override detection
+│   ├── responses.py           # Fixed customer-facing replies
+│   ├── topic_classifier.py    # Model-based topic fallback for unknown keywords
+│   ├── retrieval_agent.py     # Grounds decisions in retrieved policy; system prompt
+│   ├── rag_engine.py          # Dual-provider RAG engine; chunks by entry or by heading, over several files
 │   ├── model_client.py        # Provider-agnostic model boundary (Ollama/OpenAI)
 │   ├── schemas.py             # AgentDecision structured output schema
-│   ├── rag_engine.py          # Dual-provider RAG engine; chunks by entry or by heading, over several files
-│   ├── knowledge.py           # Knowledge Management Studio backend: review, publish, rollback, audit
-│   ├── retrieval_agent.py     # Grounds decisions in retrieved policy
+│   ├── settings.py            # Validated environment settings
 │   ├── diagnostics.py         # Mock router diagnostic tool
 │   ├── escalation.py          # Escalation ticket (context package) tool
-│   ├── agent_loop.py          # Bounded decide → diagnose → decide loop, per conversation
-│   ├── conversation.py        # Conversation state (messages, diagnostic, ticket)
+│   ├── approval.py            # Human approval records (not yet connected to an action)
+│   ├── knowledge.py           # Studio backend: review, publish, rollback, audit
+│   ├── arms.py                # Evaluation arms: baseline, retrieval-only, full agent
+│   ├── eval_metrics.py        # pass@k, case checks, gates, attack success rate
 │   ├── logging_config.py      # Console + file logging
 │   └── baseline.py            # Non-agentic baseline (for comparison only)
-├── ui/                        # Streamlit pages: home, customer view, inbox, Knowledge Management Studio
+├── ui/                        # Streamlit pages: pages.py (home, customer, inbox), knowledge.py (Studio),
+│                              # tickets.py, runtime.py (agent wiring), theme.py
 ├── tests/                     # Unit tests (fake model, run in CI) + LLM tests (local only)
 ├── tickets/                   # Generated escalation tickets (gitignored)
 ├── .env.example               # Required environment variables
 ├── LICENSE                    # MIT
-├── run_eval_v2.py             # Evaluation v2: arms, k runs, release gates; compare_arms.py compares the arms
+├── CHANGELOG.md
+├── run_eval_v2.py             # Evaluation v2 runner; compare_arms.py compares the arms
+├── run_retrieval_check.py     # Retrieval accuracy check (optional)
 └── run_eval.py                # Legacy stage-1 evaluation
 ```
 
@@ -166,5 +183,5 @@ against the published documents (`run_eval_v2.py --with-uploads`).
 
 Built incrementally, one GitHub-tagged stage at a time — see the
 [releases](../../tags) for the full progression from a bare RAG prototype
-(v0.1.0) to a fully evaluated agent (v1.0.0), each with its own commits,
+(v0.1.0) to a fully evaluated, security-reviewed agent, each with its own commits,
 tests, and evidence.
