@@ -28,27 +28,21 @@ knowledge base the agent answers from. Each gap says what it affects and how Vel
 | 5 | A list of what is out of scope | Out-of-scope questions are handled only by the prompt |
 | 6 | Arabic text: the manual is English only, the customers write Arabic | Retrieval depends on cross-language embeddings; `run_retrieval_check.py` measures it |
 
-## 3. Conflicts with the sample policy files
+## 3. Sample policy files (conflicts resolved)
 
 The three files in `data/` other than the manual (`Account_And_Billing_Policy.txt`,
 `Escalation_Rules_And_Limits.md`, `Network_Troubleshooting_Guide.md`) are not part of the live knowledge base unless
-someone publishes them in the Studio. They disagree with the manual:
+someone publishes them in the Studio. They originally disagreed with the manual (the cause of a red Internet LED, the
+meaning of "Rule #1" and "Rule #2", the password-reset channel, a 48-hour replacement promise, and tools Velo does not
+have). They were rewritten to agree with it, and `tests/test_knowledge.py` guards the result.
 
-| Topic | Manual | Sample files |
-|---|---|---|
-| Red Internet LED | Error 500: restart the router, check the WAN cable | Unpaid bill (account policy); PPPoE authentication error (network guide) |
-| "Rule #1" and "Rule #2" | Hard fault; three turns | Fibre cut; more than two reset attempts; a third rule about an open ticket within 24 hours |
-| Password reset | Link by email | OTP to the registered mobile |
-| Hardware replacement | Hard fault: escalate to staff at once | Replacement delivered within 48 hours |
-| Tools implied | None beyond the diagnostic and the ticket | Port soft reset, TR-069 rewrite, replacement permit |
-
-The Studio review flags the Rule #1 and Rule #2 overlaps. For the rest, the documents must be rewritten so that they
-describe what the support team does, not what Velo does, before they are published (`07-knowledge-studio.md`).
+What remains open: the files were **not evaluated**. Publishing them changes what Velo answers, so the evaluation must be
+re-run against that knowledge base (`run_eval_v2.py --with-uploads`) before any claim covers them.
 
 ## 4. Decision and next step
 
-- Decision (2026-11-08): the supervised demo and the evaluation use the built-in manual alone. The sample files stay in
-  the repository as material for the Studio and are covered by tests, but are not published.
+- Decision (2026-11-08): the supervised demo and the evaluation use the built-in manual alone. The sample files, now consistent with
+  the manual but not evaluated, stay in the repository as material for the Studio and are not published.
 - Next step: resolve the gaps above in a pull request (one entry per gap), add a pricing and warranty document through
   the Studio, then re-run `run_eval_v2.py --with-uploads --runs 5` so that the reports match the live knowledge base.
   Until then, a claim about Velo's answers applies to the built-in manual only.
